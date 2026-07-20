@@ -1,7 +1,10 @@
 # Blackthorn Companion — project handoff
 
 A working reference for continuing this project in a fresh thread. Read this
-first, then open the mockup and the errata doc in this same folder.
+first, then open the mockup and the errata doc in this same folder. If a
+design or table-craft question is live, also read `PLAYTEST-FEEDBACK.md` —
+several of the decisions below were pressure-tested or reversed once, and
+that doc has the reasoning, not just the outcome.
 
 ---
 
@@ -42,8 +45,10 @@ data-driven so it can flip.
 |---|---|
 | `old_mill_gm_companion.html` | The mockup — a single self-contained HTML/JS file. This is the whole app. |
 | `SCENARIO-01-ERRATA.md` | The "book differences & house rules" record (also surfaced in-app). |
+| `PLAYTEST-FEEDBACK.md` | Full record of the persona stress-test round — what each reviewer found, and Frank's decisions, with reasoning. |
 | `server.js` | A tiny local test server (see §3). |
 | `HANDOFF.md` | This file. |
+| `README.md` | The GitHub-facing landing page (short, human-oriented — this file is the deep one). |
 | `reference/` | The source book PDF + a text extract — **not tracked by git** (copyrighted; see `reference/README.md`). Empty on a fresh clone. |
 
 The source book PDF belongs at `reference/DriveThruPDFRescue5E.pdf`. Book page
@@ -93,13 +98,24 @@ Then `preview_start` the URL `http://localhost:8137/` and interact. Notes:
   on purpose: the page must be self-sufficient, so local testing catches missing
   CSS instead of hiding it.
 
-**Publishing:** the app is published as an Artifact (private). The live URL from
-last session is
+**Source of truth: GitHub.** The repo is
+`https://github.com/fvitak/Date-NightDungeons-GM-Companion-APP` (`main`
+branch). Work in this local folder, commit, and push there — that's the
+canonical copy now, not the Artifact below. Standard git workflow applies:
+commit only when asked, never force-push, confirm before pushing unless
+already mid-session on an explicitly-authorized push. The `reference/`
+folder never gets committed (see §2) — check `git status --ignored` if
+unsure before staging.
+
+**Publishing (Artifact, secondary — currently stale):** the app was also
+published as a private Artifact at
 `https://claude.ai/code/artifact/0a4e9b38-6fc6-499e-a710-fc4ee41eaa2e`
-(label `old-mill-gm-companion-v16-combat-console`). To keep the same URL, pass
-that URL as `url` when re-publishing from a new thread; otherwise a new URL is
-minted. The browser pane **cannot** load the private artifact URL (no auth) —
-that's why the local server exists.
+(label `old-mill-gm-companion-v16-combat-console`), but **this has not been
+re-published since the GitHub repo was set up** — assume it's behind the
+`main` branch until confirmed otherwise. To keep the same URL when
+re-publishing, pass that URL as `url`; otherwise a new URL is minted. The
+browser pane **cannot** load the private artifact URL (no auth) — that's why
+the local server exists for testing.
 
 **Critical styling fact:** the Artifact runtime provides only a minimal CSS
 reset — **NOT** design-system tokens. The page therefore defines all its own
@@ -321,32 +337,43 @@ session unless marked otherwise.
 
 ## 7. Open items / next steps (roughly prioritized)
 
-1. **Playtest the Attraction Points hands-off decision.** The app now does
+1. **Re-run the UX-designer (BG3-literate) persona review.** It's the one
+   lens from the stress-test round that never completed — the run hit a
+   session usage limit mid-task with no findings delivered. See
+   `PLAYTEST-FEEDBACK.md` §3.5. Everything else in that doc reflects the
+   other three personas only.
+2. **Decide the deployment target before next sharing this with anyone.**
+   GitHub (`main`) is the source of truth now (§3), but the private Artifact
+   URL is stale — it predates this whole session's work (modal migration,
+   turn economy, lookout/reinforcement fixes, AP removal). Re-publish it
+   before relying on that link again, or retire it in favor of pointing
+   people at the repo / a fresh publish.
+3. **Playtest the Attraction Points hands-off decision.** The app now does
    nothing for AP (see §6). Play a real session and see whether it actually
    gets forgotten (the risk both persona playtesters flagged) or whether an
    invested couple naturally notices and marks it themselves (Frank's bet).
    Only add any nudge if the playtest says so — and if so, mimic the book's
    own trigger (eyesight + crit/fumble) rather than inventing new ones.
-2. **Concentration**: currently unmodeled (matches the book). Frank's actual
+4. **Concentration**: currently unmodeled (matches the book). Frank's actual
    concern is narrower than full concentration tracking — it's specifically
    whether multiple concentration effects (or the same spell hitting multiple
    targets) can coexist. Revisit with the veteran-GM persona if/when Wynn's
    actual spell list (pages 67–70) comes into play and this becomes a live
    question, rather than building it preemptively.
-3. **Turn-modal rhythm feedback**: the turn modal auto-opens every turn,
+5. **Turn-modal rhythm feedback**: the turn modal auto-opens every turn,
    including for every reinforcement NPC individually (kept intentionally —
    Frank confirmed no condensing). Get a real playtest read on whether 8–9
    modals/round (post-reinforcements) feels right.
-4. **Light-mode review**: most testing has been in dark mode; confirm
+6. **Light-mode review**: most testing has been in dark mode; confirm
    light-mode contrast on the tinted (accent/warning/danger) boxes.
-5. **Unbuilt Scenario One mechanics** (tracked in errata "known gaps"):
+7. **Unbuilt Scenario One mechanics** (tracked in errata "known gaps"):
    the sneak-out forced ambush (book p.15 "During Battle Outside the Mill"),
    post-combat interrogation (DC 10 / DC 20 Persuasion, p.22), travel encounters
    + "Shelter from the Storm" (p.23).
-6. **Two sources of truth for errata** (`SCENARIO-01-ERRATA.md` and the in-app
+8. **Two sources of truth for errata** (`SCENARIO-01-ERRATA.md` and the in-app
    `ERRATA` array) will drift — collapse to one when the project is properly
    scaffolded.
-7. **Read-aloud prose in-app, license-ready**: players (especially the
+9. **Read-aloud prose in-app, license-ready**: players (especially the
    non-tabletop-literate persona) find "now go read page 18 aloud" breaks
    immersion. The fix they want — the app carrying the actual prose — is a
    copyright question, not a code question: reproducing the book's text (or
@@ -356,7 +383,7 @@ session unless marked otherwise.
    a data field with an empty `readText`/`readImage` slot, so licensed content
    can be dropped in per-scene later without restructuring. Don't hand-type
    book prose into the app in the meantime.
-8. **Player companion (part 2, deferred)**: persona playtesting strongly
+10. **Player companion (part 2, deferred)**: persona playtesting strongly
    validated that the player-without-the-tablet (running just Tarric + Briar
    off the paper sheet) is under-served — no feedback, no sense of options,
    waiting on the GM. Frank's instinct is a **separate, integrated** companion
@@ -366,7 +393,7 @@ session unless marked otherwise.
    the player's romantic data (Turn-ons/Pet Peeves) into a synced app would let
    it suggest things, but the GM would then see it too, breaking AP's current
    secrecy — unresolved, revisit when this is actually scoped.
-9. **Beyond Scenario One**: the app is hard-coded to the Old Mill. Generalizing
+11. **Beyond Scenario One**: the app is hard-coded to the Old Mill. Generalizing
    to scenarios 2–4 (and the GM-role flip) is future work.
 
 ---
@@ -377,6 +404,16 @@ session unless marked otherwise.
   reviewers/personas each time a design question came up (e.g. mode-switch,
   turn alerts, the lookout-DC conflict, mock-playthroughs to find gaps). Re-spawn
   those personas for design/table-craft calls rather than deciding solo.
+- A full **stress-test round** — the same two personas plus two invented
+  novice-couple personas playing both seats (GM-with-app and
+  player-with-only-a-sheet) — surfaced real bugs and real design gaps that
+  code review alone hadn't caught. Worth repeating before any future publish
+  milestone. Full writeup, including where a persona's own recommendation got
+  pressure-tested and reversed: `PLAYTEST-FEEDBACK.md`.
 - Every nontrivial book question was answered by **reading the rendered PDF page
   image directly**, not the lossy text extract.
 - **Syntax-check + local-server browser test before publishing.** Non-negotiable.
+- When a persona's feedback conflicts with a stated book rule or a durable
+  project principle (e.g. "never reproduce the book's prose"), **the book /
+  principle wins** — personas are a lens for finding gaps and pressure-testing
+  judgment calls, not a vote that overrides what's already been decided.

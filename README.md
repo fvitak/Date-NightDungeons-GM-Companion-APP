@@ -27,6 +27,7 @@ scenarios — and a companion view for the non-GM player — are future work.
 |---|---|
 | `old_mill_gm_companion.html` | The whole app — one self-contained HTML/JS file. |
 | `SCENARIO-01-ERRATA.md` | Every place the app deviates from, or fills a gap in, the printed book — and why. |
+| `PLAYTEST-FEEDBACK.md` | Full record of a persona-driven playtest round — findings and the decisions made in response. |
 | `server.js` | A tiny local test server (no dependencies). |
 | `HANDOFF.md` | The full technical handoff — architecture, decisions made, open items. Start here to continue development. |
 | `reference/` | Not tracked by git — see `reference/README.md`. |
