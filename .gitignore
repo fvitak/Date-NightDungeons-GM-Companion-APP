@@ -1,0 +1,17 @@
+# Copyrighted source material — kept locally for reference/verification only.
+# Never commit: this is a purchased book (PDF) and a near-full text
+# transcription of it. See reference/README.md for how to get your own copy.
+# (Named individually, not the whole reference/ folder, so reference/README.md
+# itself stays tracked — a parent-directory ignore would hide it too.)
+reference/DriveThruPDFRescue5E.pdf
+reference/RescuePDFExtract.md
+
+# Syntax-check scratch file (see HANDOFF.md §3 — extracted from the <script>
+# block, checked with `node --check`, then deleted; ignored here as a
+# safety net in case a check is interrupted before cleanup).
+_extracted.js
+
+# OS / editor junk
+.DS_Store
+Thumbs.db
+.vscode/

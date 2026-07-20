@@ -1,0 +1,1431 @@
+<h2 class="sr-only">Interactive mockup of a GM companion for the Old Mill scenario — a location graph the party moves through, guided roll resolution with real character modifiers, an exploration-vs-combat mode switch, a unified party-and-enemy combat tracker with per-room awareness, and an off-menu fallback</h2>
+
+<style>
+:root, :root[data-theme="light"] {
+  --surface-0:#efeee9; --surface-1:#f7f6f2; --surface-2:#ffffff;
+  --text-primary:#1a1a18; --text-secondary:#5f5e5a; --text-muted:#8a8984;
+  --text-accent:#185fa5; --text-danger:#a32d2d; --text-warning:#7a4f0b; --text-success:#0f6e56;
+  --bg-accent:#e6f1fb; --bg-danger:#fcebeb; --bg-warning:#faeeda; --bg-success:#eaf3de;
+  --border:rgba(0,0,0,0.14); --border-strong:rgba(0,0,0,0.24); --border-stronger:rgba(0,0,0,0.4);
+  --border-accent:#378add; --border-danger:#e24b4a; --border-warning:#ef9f27;
+  --fill-accent:#185fa5; --fill-danger:#d23f3f; --fill-primary:#1a1a18; --fill-warning:#ef9f27;
+  --on-primary:#ffffff; --on-accent:#ffffff;
+  --radius:8px; --shadow-popover:0 8px 24px rgba(0,0,0,.14),0 2px 6px rgba(0,0,0,.08);
+  --font-sans:system-ui,-apple-system,"Segoe UI",sans-serif; --font-voice:Georgia,serif; --font-mono:ui-monospace,monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --surface-0:#1f1e1b; --surface-1:#26251f; --surface-2:#2f2e27;
+    --text-primary:#ecebe4; --text-secondary:#b4b2a9; --text-muted:#8a8984;
+    --text-accent:#85b7eb; --text-danger:#f09595; --text-warning:#f0c078; --text-success:#7fd0b0;
+    --bg-accent:#0c447c; --bg-danger:#5a1e1e; --bg-warning:#4a3410; --bg-success:#2a3d14;
+    --border:rgba(255,255,255,0.15); --border-strong:rgba(255,255,255,0.26); --border-stronger:rgba(255,255,255,0.4);
+    --border-accent:#378add; --border-danger:#e24b4a; --border-warning:#ef9f27;
+    --fill-accent:#378add; --fill-danger:#e24b4a; --fill-primary:#ecebe4; --fill-warning:#ef9f27;
+    --on-primary:#1a1a18; --on-accent:#ffffff;
+    --shadow-popover:0 8px 24px rgba(0,0,0,.4),0 2px 6px rgba(0,0,0,.3);
+  }
+}
+:root[data-theme="dark"] {
+  --surface-0:#1f1e1b; --surface-1:#26251f; --surface-2:#2f2e27;
+  --text-primary:#ecebe4; --text-secondary:#b4b2a9; --text-muted:#8a8984;
+  --text-accent:#85b7eb; --text-danger:#f09595; --text-warning:#f0c078; --text-success:#7fd0b0;
+  --bg-accent:#0c447c; --bg-danger:#5a1e1e; --bg-warning:#4a3410; --bg-success:#2a3d14;
+  --border:rgba(255,255,255,0.15); --border-strong:rgba(255,255,255,0.26); --border-stronger:rgba(255,255,255,0.4);
+  --border-accent:#378add; --border-danger:#e24b4a; --border-warning:#ef9f27;
+  --fill-accent:#378add; --fill-danger:#e24b4a; --fill-primary:#ecebe4; --fill-warning:#ef9f27;
+  --on-primary:#1a1a18; --on-accent:#ffffff;
+  --shadow-popover:0 8px 24px rgba(0,0,0,.4),0 2px 6px rgba(0,0,0,.3);
+}
+body { font-family:var(--font-sans); color:var(--text-primary); background:var(--surface-0); line-height:1.5; max-width:760px; margin:0 auto; padding:16px; }
+*{ box-sizing:border-box; }
+h1,h2,h3{ font-weight:500; color:var(--text-primary); }
+.sr-only{ position:absolute!important; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0; }
+button{ border:0.5px solid var(--border-strong); background:transparent; border-radius:var(--radius); padding:6px 12px; cursor:pointer; font:inherit; color:var(--text-primary); transition:background .12s; }
+button:hover{ background:var(--surface-1); }
+button:active{ transform:scale(0.98); }
+input{ border:0.5px solid var(--border); border-radius:var(--radius); padding:6px 8px; font:inherit; background:var(--surface-2); color:var(--text-primary); }
+input:focus{ outline:none; box-shadow:0 0 0 2px var(--bg-accent); border-color:var(--fill-accent); }
+.gm-btn.is-selected { box-shadow: 0 0 0 2px var(--fill-accent); background: var(--bg-accent); border-color: var(--fill-accent); }
+@keyframes gmpulse { 0%, 100% { box-shadow: 0 0 0 0 var(--border-warning); } 50% { box-shadow: 0 0 0 3px var(--border-warning); } }
+.gm-pulse { animation: gmpulse 1.8s ease-in-out infinite; }
+</style>
+
+<div id="reminders" style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:1rem; padding:10px 12px; background:var(--bg-warning); border-radius:var(--radius);"></div>
+<div id="reminder-detail" style="display:none; margin:-4px 0 1rem; padding:10px 12px; background:var(--surface-1); border-radius:var(--radius); font-size:13px; color:var(--text-secondary);"></div>
+
+<div style="margin-bottom:1rem;">
+  <button id="errata-link" style="font-size:12px; padding:5px 10px;"><i class="ti ti-flag" style="font-size:13px; vertical-align:-2px; margin-right:4px;" aria-hidden="true"></i>book differences for this scenario</button>
+  <div id="errata-panel" style="display:none; margin-top:8px; padding:1rem 1.25rem; background:var(--surface-1); border-radius:12px;"></div>
+</div>
+
+<div id="combat-panel" style="margin-bottom:1rem;"></div>
+
+<div style="display:flex; align-items:baseline; gap:8px; margin-bottom:10px;">
+  <span style="font-size:12px; color:var(--text-muted);">you are here</span>
+  <span id="loc-name" style="font-size:16px; font-weight:500;"></span>
+</div>
+
+<div id="ra-card" style="display:flex; align-items:center; gap:10px; padding:10px 12px; background:var(--bg-accent); border-radius:var(--radius); margin-bottom:1rem;">
+  <i class="ti ti-book" style="font-size:18px; color:var(--text-accent);" aria-hidden="true"></i>
+  <span id="ra-label" style="font-size:14px; font-weight:500; color:var(--text-accent);"></span>
+</div>
+
+<div id="present-wrap" style="margin-bottom:1.5rem;"></div>
+
+<div style="font-size:15px; font-weight:500; margin-bottom:8px;">what did they do?</div>
+<div id="actions" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:8px; margin-bottom:1rem;"></div>
+
+<div id="modal-root"></div>
+
+<script>
+function escClose(e) { if (e.key === "Escape") closeModal(); }
+function openModal(html, opts) {
+  opts = opts || {};
+  const scrim = opts.light ? "rgba(0,0,0,0.28)" : "rgba(0,0,0,0.45)";
+  const pad = opts.closeBtn ? "2.25rem 1.25rem 1rem" : "1rem 1.25rem";
+  const closeX = opts.closeBtn
+    ? `<button id="modal-x" aria-label="close" style="position:absolute; top:8px; right:10px; width:auto; height:auto; padding:4px 9px; font-size:14px; line-height:1; border:0;">✕</button>`
+    : "";
+  document.getElementById("modal-root").innerHTML =
+    `<div id="modal-back" style="position:fixed; inset:0; z-index:100; background:${scrim}; display:flex; align-items:flex-start; justify-content:center; padding:24px 16px; overflow:auto;">
+      <div style="position:relative; background:var(--surface-2); border-radius:12px; max-width:440px; width:100%; padding:${pad}; box-shadow:var(--shadow-popover);">${closeX}${html}</div>
+    </div>`;
+  document.removeEventListener("keydown", escClose);
+  if (opts.dismissable) {
+    const back = document.getElementById("modal-back");
+    back.addEventListener("mousedown", (e) => { if (e.target === back) closeModal(); });
+    document.addEventListener("keydown", escClose);
+  }
+  if (opts.closeBtn) document.getElementById("modal-x").onclick = () => closeModal();
+}
+function closeModal() { document.getElementById("modal-root").innerHTML = ""; document.removeEventListener("keydown", escClose); }
+// a lighter, dismissable modal for exploration resolutions; returns the content
+// element the flow writes into (multi-step flows replace its innerHTML in place).
+function flowModal() {
+  openModal(`<div id="flow-content"></div>`, { dismissable: true, light: true, closeBtn: true });
+  return document.getElementById("flow-content");
+}
+function signed(n) { return (n >= 0 ? "+" : "") + n; }
+
+// ---- reusable roll entry with nat-1 / nat-20 auto-resolve ----
+// nat 20 = automatic success, nat 1 = automatic fail; when either is ticked the
+// total field disappears (no number needed).
+function rollFieldsHtml(pfx, allowNat20, natExtra) {
+  const extra = natExtra != null ? natExtra : NAT_EXTRA_ATTACK;
+  // Each checkbox gets its OWN label so a near-miss can't toggle the wrong box
+  // (a single shared <label> associates every click with its first control).
+  const box = "display:inline-flex; align-items:center; gap:8px; padding:8px 12px; border:0.5px solid var(--border); border-radius:var(--radius); cursor:pointer; user-select:none;";
+  return `
+    <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; font-size:13px; margin-bottom:8px;">
+      <label style="${box}"><input type="checkbox" id="${pfx}-nat1" style="width:18px; height:18px; margin:0;" />natural 1</label>
+      ${allowNat20 ? `<label style="${box}"><input type="checkbox" id="${pfx}-nat20" style="width:18px; height:18px; margin:0;" />natural 20</label>` : ""}
+      ${tip("", TIP_NAT + extra)}
+    </div>
+    <div id="${pfx}-wrap">
+      <label style="font-size:12px; color:var(--text-secondary); display:block; margin-bottom:4px;">their total</label>
+      <input id="${pfx}-total" type="number" placeholder="e.g. 14" style="width:100%; margin-bottom:6px;" />
+    </div>
+    <div id="${pfx}-err" style="display:none; color:var(--text-danger); font-size:12px; margin-bottom:6px;">Enter a number, or tick a natural 1 or 20.</div>`;
+}
+function wireNat(pfx) {
+  const n1 = document.getElementById(pfx + "-nat1");
+  const n20 = document.getElementById(pfx + "-nat20");
+  const wrap = document.getElementById(pfx + "-wrap");
+  const upd = () => { wrap.style.display = (n1.checked || (n20 && n20.checked)) ? "none" : "block"; };
+  n1.onchange = () => { if (n1.checked && n20) n20.checked = false; upd(); };
+  if (n20) n20.onchange = () => { if (n20.checked) n1.checked = false; upd(); };
+  upd();
+}
+// returns {ok, nat1, nat20, total} or null if invalid. target compared with >=.
+function readRoll(pfx, target) {
+  const n1 = document.getElementById(pfx + "-nat1").checked;
+  const n20el = document.getElementById(pfx + "-nat20");
+  const n20 = n20el && n20el.checked;
+  if (n20) return { ok: true, nat1: false, nat20: true, total: null };
+  if (n1) return { ok: false, nat1: true, nat20: false, total: null };
+  const v = parseInt(document.getElementById(pfx + "-total").value, 10);
+  if (isNaN(v)) { document.getElementById(pfx + "-err").style.display = "block"; return null; }
+  return { ok: v >= target, nat1: false, nat20: false, total: v };
+}
+// ---------- tooltip helper ----------
+const TIPS = [];
+function tip(anchor, content) {
+  const i = TIPS.length;
+  TIPS.push(content);
+  return `<span style="position:relative; display:inline-block;">${anchor}<button class="tip-btn" data-tip="${i}" aria-label="what does this mean?" style="width:auto; height:auto; padding:5px; margin:0 2px; border-radius:50%; line-height:1; vertical-align:-4px;"><i class="ti ti-info-circle" style="font-size:13px;" aria-hidden="true"></i></button><span class="tip-pop" style="display:none; position:absolute; top:26px; left:0; z-index:10; width:230px; padding:8px 10px; background:var(--surface-2); border:0.5px solid var(--border-strong); border-radius:var(--radius); font-size:12px; color:var(--text-secondary); line-height:1.5; box-shadow:var(--shadow-popover);"></span></span>`;
+}
+document.addEventListener("click", (e) => {
+  const btn = e.target.closest(".tip-btn");
+  if (btn) {
+    const pop = btn.nextElementSibling;
+    const open = pop.style.display === "block";
+    document.querySelectorAll(".tip-pop").forEach(p => { p.style.display = "none"; });
+    if (!open) { pop.textContent = TIPS[btn.getAttribute("data-tip")]; pop.style.display = "block"; }
+    e.stopPropagation();
+    return;
+  }
+  document.querySelectorAll(".tip-pop").forEach(p => p.style.display = "none");
+});
+
+const TIP_DC = "Difficulty Class — the number a roll has to reach or beat to succeed. Higher means harder.";
+const TIP_PASSIVE = "A fixed awareness score. That character doesn't roll — you compare the acting character's total straight to this number.";
+const TIP_AC = "Armor Class — the number an attack roll has to reach or beat to hit.";
+const TIP_INIT = "Turn order for a fight. Everyone rolls a d20 plus their Dexterity modifier; highest goes first, then it loops back to the top each round.";
+const TIP_NAT = "The number showing on the d20 itself, before any modifier is added.";
+// Auto-resolve wording differs by roll type. On an attack it's the real 5e rule.
+// On an ability/skill check it's just a no-math shortcut, so we don't teach it as a law.
+const NAT_EXTRA_ATTACK = " On an attack, a natural 20 always hits and deals extra damage; a natural 1 always misses — no total needed.";
+const NAT_EXTRA_CHECK = " If they rolled a natural 1 or 20, tick it to skip the math — you won't need a total.";
+
+// ---------- party data (real character-sheet numbers) ----------
+const PARTY = {
+  tarric: {
+    name: "Tarric",
+    shortbow: { atkMod: 4, dmgDieMax: 6, dmgMod: 2 },
+    athletics: { mod: 3, tip: "Roll a d20 and add Tarric's Athletics modifier. Athletics is a Strength skill; Tarric's is +3. He adds it up out loud and gives you the total." },
+    strength:  { mod: 3, tip: "Roll a d20 and add Tarric's Strength modifier, which is +3. He adds it up out loud and gives you the total." },
+    stealth:   { mod: 4, tip: "Roll a d20 and add Tarric's Stealth modifier. Stealth is a Dexterity skill; Tarric's is +4. He adds it up out loud and gives you the total." }
+  },
+  wynn: {
+    name: "Wynn",
+    dexterity: { mod: 2, tip: "Roll a d20 and add Wynn's Dexterity modifier, which is +2. She adds it up out loud and gives you the total." }
+  }
+};
+
+// ---------- combatants ----------
+const COMBATANTS = [
+  { id: "tarric",  name: "Tarric", side: "party", hp: 35, maxHp: 35, ac: 15, init: 2, atk: "Shortbow +4 (1d6+2), Longsword +5 (1d8+3), Dagger +5 (1d4+3)", attacks: [{ n: "Shortbow", mod: 4, dmg: "1d6+2", ranged: true }, { n: "Longsword", mod: 5, dmg: "1d8+3", hands: true }, { n: "Dagger", mod: 5, dmg: "1d4+3", hands: true }], notes: [] },
+  { id: "wynn",    name: "Wynn",   side: "party", hp: 27, maxHp: 27, ac: 15, init: 2, atk: "Staff 1d6+2", attacks: [{ n: "Staff swing", mod: 2, dmg: "1d6+2", hands: true }], caster: true, notes: ["gagged", "chained"] },
+  { id: "briar",   name: "Briar",  side: "party", hp: 18, maxHp: 18, ac: 15, init: null, atk: "Bite +6 (2d4+4), Trip DC 11", attacks: [{ n: "Bite", mod: 6, dmg: "2d4+4", rider: "On a hit, the target makes a DC 11 Strength save or is knocked prone." }], notes: [] },
+  { id: "harold",  name: "Harold Longfingers", role: "lookout", side: "enemy", zone: "roof",  hp: 11, maxHp: 11, ac: 12, init: 1, atk: "Shortbow +3 (1d6), Shortsword +2 (1d6)", attacks: [{ n: "Shortbow", mod: 3, dmg: "1d6", ranged: true }, { n: "Shortsword", mod: 2, dmg: "1d6" }], tactics: "Fires on first sight, then shouts. Can kneel for +2 AC.", notes: [] },
+  { id: "arnie",   name: "Arnie Wilkens", role: "Wynn's guard", side: "enemy", zone: "room1", hp: 11, maxHp: 11, ac: 12, init: 1, atk: "Shortsword +3 (1d6+1)", attacks: [{ n: "Shortsword", mod: 3, dmg: "1d6+1" }], tactics: "Nodding off at first — charges in once alerted.", inside: true, notes: [] },
+  { id: "willard", name: "Willard Hicks", role: "dice player", side: "enemy", zone: "room2", hp: 13, maxHp: 13, ac: 12, init: 1, atk: "Shortsword +3 (1d6+1)", attacks: [{ n: "Shortsword", mod: 3, dmg: "1d6+1" }], tactics: "Charges in, trusting numbers.", inside: true, notes: [] },
+  { id: "agatha",  name: "Agatha Mills",  role: "dice player, bard", side: "enemy", zone: "room2", hp: 12, maxHp: 12, ac: 12, init: 5, atk: "Shortsword +1 (1d6-1)", attacks: [{ n: "Shortsword", mod: 1, dmg: "1d6-1" }], tactics: "Casts True Strike, then engages.", inside: true, notes: [] }
+];
+const REINFORCEMENTS = [
+  { id: "oberon", name: "Oberon Scott", role: "band leader", side: "enemy", hp: 23, maxHp: 23, ac: 14, init: 2, atk: "Longsword +3 (1d8+1), Throwing dagger +4 (1d4+1)", attacks: [{ n: "Longsword", mod: 3, dmg: "1d8+1" }, { n: "Throwing dagger", mod: 4, dmg: "1d4+1", ranged: true }], tactics: "Throws dagger, then charges. Ring regenerates 1d6 HP every 10 min. Wears Wynn's stolen ring and amulet.", notes: [] },
+  { id: "thorpe", name: "Scotty Thorpe", side: "enemy", hp: 5, maxHp: 5, ac: 12, init: 1, atk: "Shortsword +3 (1d6+1)", attacks: [{ n: "Shortsword", mod: 3, dmg: "1d6+1" }], notes: [] },
+  { id: "odell",  name: "Oscar O'Dell",  side: "enemy", hp: 7, maxHp: 7, ac: 12, init: 1, atk: "Shortsword +3 (1d6+1)", attacks: [{ n: "Shortsword", mod: 3, dmg: "1d6+1" }], notes: [] }
+];
+function findC(id) { return COMBATANTS.find(c => c.id === id) || REINFORCEMENTS.find(c => c.id === id); }
+function insideTotal() { return COMBATANTS.filter(c => c.inside && isEngaged(c)).reduce((s, c) => s + c.hp, 0); }
+
+// ---------- run state ----------
+let currentLoc = "exterior";
+let combatActive = false;
+let round = 1;
+let wynnFreed = false;
+let hasKey = false;
+let reinforcementsResolved = false;
+let wynnGagAttemptedRound = false;
+let wynnGagLast = null;
+let currentTurnId = null;
+let reinforcementsPending = false;
+let loudCheckedRound = 0;
+let actionUsed = false; // the current combatant has spent their one action this turn
+function wynnGagged() { return findC("wynn").notes.includes("gagged"); }
+function wynnChained() { return findC("wynn").notes.includes("chained"); }
+function isGmControlled(c) { return c.side === "enemy" || c.id === "wynn"; }
+// an enemy is "in the fight" only once its room has been alerted (or it's a
+// reinforcement that has arrived). The party is always in.
+function isEngaged(c) {
+  if (c.side === "party") return true;
+  if (c.engaged) return true;
+  return !!(c.zone && zoneAlert[c.zone]);
+}
+function currentFighters() { return COMBATANTS.filter(c => c.hp > 0 && isEngaged(c)); }
+function orderedLiving() {
+  return currentFighters().slice().sort((a, b) => ((b.initRoll == null ? -999 : b.initRoll)) - ((a.initRoll == null ? -999 : a.initRoll)));
+}
+// Per-round "is this ongoing fight loud enough for another room to notice" DCs.
+// Roof only ever appears as a noise SOURCE while Harold is alive and fighting
+// (a dead lookout makes no ongoing noise), so roof uses the book's "shout" DCs
+// (page 16: Room 2 DC 6 / Room 1 DC 10) — an active fight is louder than a
+// one-time silent drop, which is handled separately as its own notice check.
+const NOISE_FROM = {
+  room1: [{ zone: "roof", dc: 8 }, { zone: "room2", dc: 5 }],
+  room2: [{ zone: "room1", dc: 7 }, { zone: "roof", dc: 7 }],
+  roof:  [{ zone: "room2", dc: 6 }, { zone: "room1", dc: 10 }]
+};
+function zoneLabel(z) { return z === "roof" ? "the roof" : z === "room1" ? "Room 1" : "Room 2"; }
+function zoneOccupants(z) { return COMBATANTS.filter(c => c.side === "enemy" && c.zone === z && c.hp > 0); }
+function hearingChecks() {
+  const sources = Object.keys(zoneAlert).filter(z => zoneAlert[z]);
+  const targets = {};
+  sources.forEach(s => (NOISE_FROM[s] || []).forEach(t => {
+    if (zoneAlert[t.zone]) return;
+    if (!zoneOccupants(t.zone).length) return;
+    if (targets[t.zone] === undefined || t.dc < targets[t.zone]) targets[t.zone] = t.dc;
+  }));
+  return Object.keys(targets).map(z => ({ zone: z, dc: targets[z] }));
+}
+function beginCombat() {
+  runInitiative(() => runLoudNoise(() => {
+    loudCheckedRound = round;
+    const o = orderedLiving();
+    currentTurnId = o.length ? o[0].id : null;
+    actionUsed = false;
+    renderCombat();
+    openTurnModal();
+  }));
+}
+function runInitiative(onComplete) {
+  const need = currentFighters().filter(c => c.initRoll == null);
+  let i = 0;
+  (function step() {
+    if (i >= need.length) { if (onComplete) onComplete(); return; }
+    const c = need[i];
+    const gm = isGmControlled(c);
+    const ask = gm ? `Roll initiative for ${c.name}` : `Ask ${c.name} to roll for initiative`;
+    const itip = `Roll a d20 and add ${c.name}'s initiative modifier, ${signed(c.init === null ? 0 : c.init)} (it comes from Dexterity). Add it up out loud and enter the total. Highest total goes first, then play loops through the order each round.`;
+    openModal(`
+      <div style="font-size:11px; color:var(--text-muted); margin-bottom:8px;">roll initiative — ${i + 1} of ${need.length}</div>
+      <div style="font-size:15px; font-weight:500; margin-bottom:8px;">${c.name}</div>
+      <div style="font-size:13px; line-height:1.6; margin-bottom:12px;">${ask}.${tip("", itip)}</div>
+      <input id="init-in" type="number" placeholder="total" value="${c.initRoll == null ? "" : c.initRoll}" style="width:100%; margin-bottom:6px;" />
+      <div id="init-err" style="display:none; color:var(--text-danger); font-size:12px; margin-bottom:6px;">Enter a number.</div>
+      <button id="init-next" style="width:100%; margin-bottom:6px;">${i === need.length - 1 ? "done" : "next"}</button>
+      ${i > 0 ? `<button id="init-back" style="width:100%;">back</button>` : ""}`);
+    const inp = document.getElementById("init-in");
+    inp.focus();
+    const back = document.getElementById("init-back");
+    if (back) back.onclick = () => { i -= 1; step(); };
+    document.getElementById("init-next").onclick = () => {
+      const v = parseInt(inp.value, 10);
+      if (isNaN(v)) { document.getElementById("init-err").style.display = "block"; return; }
+      c.initRoll = v; i += 1; step();
+    };
+  })();
+}
+function runLoudNoise(onComplete) {
+  const checks = hearingChecks();
+  if (!checks.length) { if (onComplete) onComplete(); return; }
+  const rows = checks.map((c, i) => {
+    const occ = zoneOccupants(c.zone).map(x => x.name).join(", ");
+    return `<label style="display:flex; align-items:flex-start; gap:8px; padding:8px 0; border-bottom:0.5px solid var(--border); font-size:13px;"><input type="checkbox" id="noise-${i}" style="width:15px; height:15px; margin-top:2px;" /><span><b>${zoneLabel(c.zone)}</b> (${occ}) — roll Perception vs ${tip(`DC ${c.dc}`, TIP_DC)}. Check the box if they beat it.</span></label>`;
+  }).join("");
+  openModal(`
+    <div style="font-size:15px; font-weight:500; margin-bottom:6px;">a fight is loud</div>
+    <div style="font-size:13px; line-height:1.6; margin-bottom:10px;">Rooms that haven't noticed yet get a Perception check to hear the fighting. Roll for each, then tick the ones that noticed — they'll join the fight.</div>
+    ${rows}
+    <button id="noise-go" style="width:100%; margin-top:12px;">continue</button>`);
+  document.getElementById("noise-go").onclick = () => {
+    checks.forEach((c, i) => { if (document.getElementById("noise-" + i).checked) zoneAlert[c.zone] = true; });
+    runInitiative(() => { if (onComplete) onComplete(); });
+  };
+}
+function currentTurn() {
+  const list = orderedLiving();
+  if (!list.length) return null;
+  return list.find(x => x.id === currentTurnId) || list[0];
+}
+function nextTurn() {
+  const list = orderedLiving();
+  if (!list.length) return;
+  const idx = list.findIndex(x => x.id === currentTurnId);
+  if (idx === -1) { currentTurnId = list[0].id; }
+  else if (idx >= list.length - 1) { round += 1; wynnGagAttemptedRound = false; currentTurnId = list[0].id; }
+  else { currentTurnId = list[idx + 1].id; }
+  actionUsed = false; // fresh turn, fresh action
+  renderCombat();
+  renderReminders();
+}
+const recurringResolved = {};
+const zoneAlert = { roof: false, room1: false, room2: false };
+const REINFORCE_THRESHOLD = 10;
+
+function startCombat(zone) {
+  const wasActive = combatActive;
+  combatActive = true;
+  if (zone) zoneAlert[zone] = true;
+  if (!wasActive) {
+    wynnGagAttemptedRound = false;
+    renderCombat();
+    renderReminders();
+    beginCombat();
+    return;
+  }
+  renderCombat();
+  renderReminders();
+}
+
+// ---------- margin flavor ----------
+function marginFlavor(margin, success) {
+  if (success) return margin <= 1 ? "barely made it" : margin <= 5 ? "clean success" : "crushed it";
+  return margin <= 2 ? "so close — just short" : margin <= 6 ? "not close" : "way off";
+}
+
+// ---------- locations (graph) ----------
+const LOCATIONS = {
+  exterior: {
+    name: "exterior",
+    read: "Read: setting the scene — page 13",
+    threats: ["harold"],
+    looks: [
+      { label: "peek into Room 2's windows", body: "The front windows are locked, but they can see in.", read: "Read: room 2 description — page 18 (what they see through the window).", guidance: "Read the description, then ask what they do next. They haven't entered — they're still outside." },
+      { label: "peek into Room 3's open window", body: "The window is open — they can see the whole room.", read: "Read: room 3 description — page 19 (what they see through the window).", guidance: "Read the description, then ask what they do next. They haven't entered — they're still outside." }
+    ],
+    enters: [
+      { label: "climb the paddlewheel", to: "paddlewheel", who: "tarric", mod: "athletics", checkName: "Athletics check", target: 10, targetLabel: "DC 10", targetTip: TIP_DC, fumbleNat1: "1d3", successText: "They make it up onto the paddlewheel.", failText: "No grip — no progress.", successGuidance: "Ask what they do from up there.", failGuidance: "Still at ground level — try again or do something else." },
+      { label: "climb through Room 1's window", to: "room1", roomWindow: true, who: "tarric", mod: "stealth", penalty: -4, checkName: "Stealth check", target: 9, targetLabel: "Arnie's passive Perception, 9", targetTip: TIP_PASSIVE, tag: "2 checks", successText: "Arnie doesn't notice — they're in.", failText: "Arnie stirs and notices something.", successGuidance: "Keep it quiet — no fight yet unless the party acts.", failGuidance: "Arnie was half-asleep — give him a beat, then start combat in Room 1.", failZone: "room1" },
+      { label: "climb through Room 3's open window", to: "room3", noRoll: true, guidance: "No one there to notice — they're straight in. Ask what they do next." },
+      { label: "walk in through the main doors", to: "room2", noRoll: true, guidance: "The main doors are unlocked — they walk right in (the side door and lower windows are locked; this is the only free way in front). Ask what they do next." },
+      { label: "climb through a back window into Room 2", to: "room2", who: "tarric", mod: "stealth", penalty: -4, checkName: "Stealth check", target: 11, targetLabel: "the higher passive Perception in Room 2, 11", targetTip: TIP_PASSIVE, successText: "Neither notices — they're in.", failText: "One of them notices something.", successGuidance: "Keep it quiet — no fight yet unless the party acts.", failGuidance: "Start combat in Room 2.", failZone: "room2" }
+    ],
+    local: [
+      { label: "shoot the lookout", kind: "attack" },
+      { label: "walk the stream bank", kind: "check", who: "tarric", mod: "athletics", checkName: "Athletics check", target: 8, targetLabel: "DC 8", targetTip: TIP_DC, fumbleNat1: "1d4", successText: "They make their way along without incident.", failText: "A stumble, but they recover — no real setback.", successGuidance: "Ask what they do next.", failGuidance: "Ask what they do next." }
+    ]
+  },
+  paddlewheel: {
+    name: "atop the paddlewheel", read: null, threats: [], looks: [],
+    enters: [
+      { label: "continue up to the loft door", to: "loft", who: "tarric", mod: "athletics", checkName: "Athletics check", target: 8, targetLabel: "DC 8", targetTip: TIP_DC, fumbleNat1: "1d8", successText: "They reach the loft door.", failText: "No progress on the climb.", successGuidance: "Ask what they do from the loft.", failGuidance: "Still atop the paddlewheel — try again or pick something else." },
+      { label: "continue up to the roof", to: "roof", who: "tarric", mod: "athletics", checkName: "Athletics check", target: 15, targetLabel: "DC 15", targetTip: TIP_DC, fumbleNat1: "1d10", successText: "They reach the roof.", failText: "No progress on the climb.", successGuidance: "Ask what they do on the roof.", failGuidance: "Still atop the paddlewheel — try again or pick something else." },
+      { label: "climb back down", to: "exterior", noRoll: true, guidance: "Back at ground level. Ask what they do next." }
+    ],
+    local: []
+  },
+  roof: {
+    name: "roof", read: "Read: roof description — page 16", threats: ["harold"], looks: [],
+    enters: [
+      { label: "climb down the hatch to the loft", to: "loft", noRoll: true, guidance: "They're in the loft now. Ask what they do next." },
+      { label: "climb back down the paddlewheel", to: "paddlewheel", noRoll: true, guidance: "Back atop the paddlewheel. Ask what they do next." }
+    ],
+    local: [
+      { label: "move quietly across the roof", kind: "check", who: "tarric", mod: "stealth", penalty: -4, checkName: "Stealth check", target: 10, targetLabel: "the lookout's passive Perception, 10", targetTip: TIP_PASSIVE, noMove: true, successText: "They move without drawing Harold's attention.", failText: "Harold notices movement on the roof.", successGuidance: "Ask what they do next.", failGuidance: "Start combat on the roof.", failZone: "roof" }
+    ]
+  },
+  room1: {
+    name: "room 1 — Wynn's room", read: "Read: room 1 description — page 17", threats: ["arnie"], looks: [],
+    enters: [
+      { label: "go to Room 2 through the door", to: "room2", noRoll: true, guidance: "They're in Room 2 now. Ask what they do next." },
+      { label: "climb back out the window", to: "exterior", roomWindow: true, who: "tarric", mod: "stealth", penalty: -4, checkName: "Stealth check", target: 9, targetLabel: "Arnie's passive Perception, 9", targetTip: TIP_PASSIVE, tag: "2 checks", successText: "They slip back out unnoticed.", failText: "Arnie notices them leaving.", successGuidance: "Back outside. Ask what they do next.", failGuidance: "Start combat in Room 1.", failZone: "room1" }
+    ],
+    local: [
+      { label: "free Wynn's gag", kind: "gag" },
+      { label: "search the desk and chest", kind: "info", body: "Desk: song lyrics, a mandolin, a small chest. The small chest holds the key to Wynn's chains, plus odds and ends.", guidance: "They now have the key to Wynn's chains. Describe the find, then ask what they do next.", onDone: () => { hasKey = true; } },
+      { label: "unchain Wynn with the key", kind: "unchain" }
+    ]
+  },
+  room2: {
+    name: "room 2 — mill floor", read: "Read: room 2 description — page 18", threats: ["willard", "agatha"], looks: [],
+    enters: [
+      { label: "go to Room 1 through the door", to: "room1", noRoll: true, guidance: "They're in Room 1 now. Ask what they do next." },
+      { label: "go to Room 3 through the door", to: "room3", noRoll: true, guidance: "They're in Room 3 now. Ask what they do next." },
+      { label: "go up to the loft via the stairs", to: "loft", noRoll: true, guidance: "They're in the loft now. Ask what they do next." },
+      { label: "head back outside", to: "exterior", noRoll: true, guidance: "Back outside. Ask what they do next." }
+    ],
+    local: [
+      { label: "grab an improvised weapon", kind: "weapons" }
+    ]
+  },
+  loft: {
+    name: "loft", read: "Read: loft description — page 19", threats: [], looks: [],
+    enters: [
+      { label: "go down to Room 2 via the stairs", to: "room2", noRoll: true, guidance: "They're in Room 2 now. Ask what they do next." },
+      { label: "climb up the hatch to the roof", to: "roof", noRoll: true, guidance: "They're on the roof now. Ask what they do next." },
+      { label: "climb down the loft door", to: "paddlewheel", noRoll: true, guidance: "Back atop the paddlewheel. Ask what they do next." }
+    ],
+    local: []
+  },
+  room3: {
+    name: "room 3 — bunkroom", read: "Read: room 3 description — page 19", threats: [], looks: [],
+    enters: [
+      { label: "go to Room 2 through the door", to: "room2", noRoll: true, guidance: "They're in Room 2 now. Ask what they do next." },
+      { label: "climb out the open window", to: "exterior", noRoll: true, guidance: "Back outside. Ask what they do next." },
+      { label: "force the overgrown exterior door", to: "exterior", who: "tarric", mod: "strength", checkName: "Strength check", target: 8, targetLabel: "DC 8", targetTip: TIP_DC, successText: "It gives way — they're outside.", failText: "It won't budge yet.", successGuidance: "Ask what they do next.", failGuidance: "Still in Room 3 — try again or pick something else." }
+    ],
+    local: [
+      { label: "search the chests", kind: "info", body: "Two chests of clothing and personal effects — nothing plot-relevant.", guidance: "Describe what they find, then ask what they do next." }
+    ]
+  }
+};
+
+// ---------- flow chrome ----------
+function guidanceHtml(text, trailingTip) {
+  return `<div style="padding:10px 12px; background:var(--bg-accent); border-radius:var(--radius);">
+    <div style="font-size:11px; color:var(--text-accent); margin-bottom:2px;">what to do next</div>
+    <div style="font-size:13px; color:var(--text-accent); line-height:1.6;">${text}${trailingTip || ""}</div>
+  </div>`;
+}
+function readPointer(ref) {
+  if (!ref) return "";
+  return `<div style="display:flex; align-items:center; gap:8px; padding:8px 12px; margin-bottom:10px; background:var(--surface-2); border:0.5px solid var(--border); border-radius:var(--radius);">
+    <i class="ti ti-book" style="font-size:15px; color:var(--text-secondary);" aria-hidden="true"></i>
+    <span style="font-size:13px;">${ref}</span>
+  </div>`;
+}
+function doneButton(container, onDone) {
+  container.querySelector("#f-done").onclick = onDone;
+}
+
+// ---------- info / no-roll flow ----------
+function runInfoFlow(title, body, guidance, container, onDone, readRef) {
+  container.style.display = "block";
+  container.innerHTML = `
+    <div style="font-size:14px; font-weight:500; margin-bottom:10px;">${title}</div>
+    <div style="font-size:13px; margin-bottom:14px; line-height:1.6;">${body}</div>
+    ${readPointer(readRef)}
+    ${guidanceHtml(guidance)}
+    <button id="f-done" style="width:100%; margin-top:10px;">done</button>`;
+  doneButton(container, onDone);
+}
+
+// ---------- generic check flow ----------
+function runCheckFlow(cfg, container, onDone) {
+  container.style.display = "block";
+  const pm = PARTY[cfg.who];
+  const modInfo = pm[cfg.mod];
+  const penalty = cfg.penalty || 0;
+  const checkTip = modInfo.tip + (penalty ? ` A -${Math.abs(penalty)} penalty applies here, so subtract ${Math.abs(penalty)} from the total.` : "");
+  step1();
+  function step1() {
+    container.innerHTML = `
+      <div style="font-size:11px; color:var(--text-muted); margin-bottom:8px;">${cfg.label}</div>
+      <div style="font-size:13px; margin-bottom:6px; line-height:1.6;">Have ${pm.name} roll ${tip(`a ${cfg.checkName}`, checkTip)} against ${tip(cfg.targetLabel, cfg.targetTip)}.</div>
+      ${rollFieldsHtml("chk", true, NAT_EXTRA_CHECK)}
+      <button id="f-next" style="width:100%;">continue</button>`;
+    wireNat("chk");
+    container.querySelector("#f-next").onclick = () => {
+      const r = readRoll("chk", cfg.target);
+      if (!r) return;
+      resultStep(r);
+    };
+  }
+  function resultStep(r) {
+    const success = r.ok;
+    let text = success ? cfg.successText : cfg.failText;
+    const guidance = success ? cfg.successGuidance : cfg.failGuidance;
+    if (r.nat1 && cfg.fumbleNat1) text += ` Also — a natural 1: they slip and take ${cfg.fumbleNat1} damage. Have the player roll and apply it.`;
+    const moved = success && cfg.to && !cfg.noMove;
+    const startsCombat = !success && cfg.failZone;
+    if (moved) setLocation(cfg.to);
+    const readRef = moved && LOCATIONS[cfg.to] ? LOCATIONS[cfg.to].read : null;
+    const howClose = r.total == null
+      ? (r.nat20 ? "natural 20 — automatic success" : "natural 1 — automatic fail")
+      : "how close: " + marginFlavor(success ? r.total - cfg.target : cfg.target - r.total, success);
+    container.style.display = "block";
+    container.innerHTML = `
+      <div style="font-size:11px; color:var(--text-muted); margin-bottom:4px;">${howClose}</div>
+      <div style="font-size:13px; margin-bottom:14px; line-height:1.6;">${text}</div>
+      ${readPointer(readRef)}
+      ${guidanceHtml(guidance, startsCombat ? tip("", TIP_INIT) : "")}
+      <button id="f-done" style="width:100%; margin-top:10px;">${startsCombat ? "start combat — roll for initiative" : "done"}</button>`;
+    container.querySelector("#f-done").onclick = startsCombat ? () => startCombat(cfg.failZone) : onDone;
+  }
+}
+
+// ---------- room 1 window: two-step (Athletics gate, then Stealth) ----------
+// Book (pages 14 & 17) lists both checks but no order. We resolve the physical
+// climb first, then whether the guard noticed. Logged in book-differences.
+function flowRoomWindow(cfg, container, onDone) {
+  container.style.display = "block";
+  const t = PARTY.tarric;
+  const entering = cfg.to !== "exterior";
+  const backTo = entering ? "outside" : "in Room 1";
+  athleticsStep();
+  function athleticsStep() {
+    container.innerHTML = `
+      <div style="font-size:11px; color:var(--text-muted); margin-bottom:8px;">${cfg.label} · step 1 of 2</div>
+      <div style="font-size:13px; margin-bottom:6px; line-height:1.6;">First — can Tarric physically get through? It's a tight, chest-high squeeze. Have him roll ${tip("an Athletics check", "Roll a d20 and add Tarric's Athletics modifier (+3). He adds it up out loud and gives you the total.")} against ${tip("DC 10", TIP_DC)}.</div>
+      ${rollFieldsHtml("w", false, NAT_EXTRA_CHECK)}
+      <button id="w-next" style="width:100%;">continue</button>`;
+    wireNat("w");
+    container.querySelector("#w-next").onclick = () => {
+      const r = readRoll("w", 10);
+      if (!r) return;
+      if (r.nat1) return fumbleResult();
+      if (r.ok) return stealthStep();
+      return noProgressResult();
+    };
+  }
+  function noProgressResult() {
+    container.innerHTML = `
+      <div style="font-size:13px; margin-bottom:14px; line-height:1.6;">He can't get through the gap — no progress. They're still ${backTo}.</div>
+      ${guidanceHtml("Try again, or pick something else.")}
+      <button id="f-done" style="width:100%; margin-top:10px;">done</button>`;
+    doneButton(container, onDone);
+  }
+  function fumbleResult() {
+    startCombatMaybeFromSplash();
+    container.innerHTML = `
+      <div style="font-size:11px; color:var(--text-muted); margin-bottom:4px;">natural 1</div>
+      <div style="font-size:13px; margin-bottom:14px; line-height:1.6;">He slips and falls in the stream — 1d4 damage (have the player roll and apply it). They're still ${backTo}. The splash gives Arnie a ${tip("DC 6 Perception check", TIP_DC)} to notice.</div>
+      ${guidanceHtml("If Arnie makes that check, combat starts in Room 1 — roll for initiative. If he misses it, they can try again.", tip("", TIP_INIT))}
+      <button id="f-done" style="width:100%; margin-top:10px;">done</button>`;
+    doneButton(container, onDone);
+  }
+  function startCombatMaybeFromSplash() { /* GM decides from the DC 6; no auto-start */ }
+  function stealthStep() {
+    container.innerHTML = `
+      <div style="font-size:11px; color:var(--text-muted); margin-bottom:8px;">${cfg.label} · step 2 of 2</div>
+      <div style="font-size:13px; margin-bottom:6px; line-height:1.6;">He's through the window. Was he noticed? Have him roll ${tip("a Stealth check", "Roll a d20 and add Tarric's Stealth modifier (+4), then subtract 4 for climbing a window — so net +0. He adds it up out loud and gives you the total.")} against ${tip("Arnie's passive Perception, 9", TIP_PASSIVE)}.</div>
+      ${rollFieldsHtml("s", true, NAT_EXTRA_CHECK)}
+      <button id="s-next" style="width:100%;">continue</button>`;
+    wireNat("s");
+    container.querySelector("#s-next").onclick = () => {
+      const r = readRoll("s", 9);
+      if (!r) return;
+      const success = r.ok;
+      setLocation(cfg.to);
+      const readRef = LOCATIONS[cfg.to] ? LOCATIONS[cfg.to].read : null;
+      const text = success
+        ? `They're ${entering ? "in — Arnie doesn't notice" : "back outside — Arnie doesn't notice them leave"}.`
+        : `They made it ${entering ? "in" : "out"}, but Arnie noticed.`;
+      const guidance = success
+        ? (entering ? "Keep it quiet — no fight yet unless the party acts." : "Ask what they do next.")
+        : "Give Arnie a beat to react, then start combat in Room 1 — roll for initiative.";
+      container.innerHTML = `
+        <div style="font-size:13px; margin-bottom:14px; line-height:1.6;">${text}</div>
+        ${readPointer(success ? readRef : null)}
+        ${guidanceHtml(guidance, success ? "" : tip("", TIP_INIT))}
+        <button id="f-done" style="width:100%; margin-top:10px;">${success ? "done" : "start combat — roll for initiative"}</button>`;
+      container.querySelector("#f-done").onclick = success ? onDone : () => startCombat("room1");
+    };
+  }
+}
+
+// ---------- shoot the lookout (attack, inline damage reveal) ----------
+function flowShootLookout(container, onDone) {
+  container.style.display = "block";
+  const bow = PARTY.tarric.shortbow;
+  container.innerHTML = `
+    <div style="font-size:11px; color:var(--text-muted); margin-bottom:8px;">shoot the lookout</div>
+    <div style="font-size:13px; margin-bottom:6px; line-height:1.6;">Have Tarric roll ${tip("a shortbow attack", "Roll a d20 and add Tarric's shortbow attack bonus, +4. Add it up out loud and give the total.")} against ${tip("Harold's AC, 12", TIP_AC)}.</div>
+    ${rollFieldsHtml("atk", true)}
+    <div id="f-dmg-wrap" style="display:none; margin-top:10px; padding-top:10px; border-top:0.5px solid var(--border);">
+      <div id="f-dmg-msg" style="font-size:13px; margin-bottom:6px; line-height:1.6;"></div>
+      <label style="font-size:12px; color:var(--text-secondary); display:block; margin-bottom:4px;">damage total</label>
+      <input type="number" id="f-dmg" placeholder="e.g. 6" style="width:100%; margin-bottom:6px;" />
+      <div id="f-dmg-error" style="display:none; color:var(--text-danger); font-size:12px; margin-bottom:6px;">Enter a number.</div>
+      <button id="f-dmg-next" style="width:100%;">continue</button>
+    </div>
+    <button id="f-atk-next" style="width:100%;">continue</button>`;
+  wireNat("atk");
+  let crit = false, natOne = false, natTwenty = false;
+  const atkNext = container.querySelector("#f-atk-next");
+  atkNext.onclick = () => {
+    const r = readRoll("atk", 12);
+    if (!r) return;
+    natOne = r.nat1; natTwenty = r.nat20; crit = r.nat20;
+    if (r.ok) {
+      container.querySelector("#f-dmg-msg").innerHTML = crit
+        ? `It hits — <b>critical hit!</b> Have them roll ${tip("shortbow damage", `Roll 1d${bow.dmgDieMax} and add ${bow.dmgMod}.`)}, but roll the damage die <b>twice</b> for a crit, then give the total.`
+        : `It hits. Have them roll ${tip("shortbow damage", `Roll 1d${bow.dmgDieMax} and add ${bow.dmgMod}. Give the total.`)} out loud and tell you the total.`;
+      container.querySelector("#f-dmg-wrap").style.display = "block";
+      atkNext.style.display = "none";
+      container.querySelector("#f-dmg-next").onclick = () => {
+        const dmg = parseInt(container.querySelector("#f-dmg").value, 10);
+        if (isNaN(dmg) || dmg < 0) { container.querySelector("#f-dmg-error").style.display = "block"; return; }
+        finish(true, dmg);
+      };
+    } else {
+      finish(false, 0);
+    }
+  };
+
+  function finish(hit, dmg) {
+    if (!hit) {
+      const text = "The shot misses. Harold doesn't notice anything." + (natOne ? " (natural 1 — automatic miss)" : "");
+      container.innerHTML = `
+        <div style="font-size:13px; margin-bottom:14px; line-height:1.6;">${text}</div>
+        ${guidanceHtml("No fight yet — combat hasn't started. Ask what the party does next.")}
+        <button id="f-done" style="width:100%; margin-top:10px;">done</button>`;
+      container.querySelector("#f-done").onclick = onDone;
+      return;
+    }
+    applyDamage("harold", dmg);
+    const dropped = findC("harold").hp === 0;
+    // errata #1: page-16 DCs are canonical. Drop -> Room 2 DC 10 / Room 1 DC 15.
+    // Shout -> Room 2 DC 6 / Room 1 DC 10 (easier to hear a shout than a silent drop).
+    if (dropped) {
+      noiseCheckStep(`Harold drops (${dmg} damage).${crit ? " Critical hit!" : ""}`, [{ zone: "room2", dc: 10 }, { zone: "room1", dc: 15 }], false);
+    } else {
+      noiseCheckStep(`He's hit for ${dmg}${crit ? " (critical hit!)" : ""} but stays up — he shouts to warn the others.`, [{ zone: "room2", dc: 6 }, { zone: "room1", dc: 10 }], true);
+    }
+  }
+
+  // haroldEngaged: true once he's alive and actively shooting/shouting — the roof
+  // is a live fight regardless of whether the other rooms notice. A clean drop
+  // starts NO combat by itself; it only starts if a room actually notices.
+  function noiseCheckStep(introText, dcs, haroldEngaged) {
+    const checks = dcs.filter(d => !zoneAlert[d.zone] && zoneOccupants(d.zone).length);
+    const rows = checks.map((d, i) => {
+      const occ = zoneOccupants(d.zone).map(x => x.name).join(", ");
+      return `<label style="display:flex; align-items:flex-start; gap:8px; padding:8px 0; border-bottom:0.5px solid var(--border); font-size:13px;"><input type="checkbox" id="ns-${i}" style="width:15px; height:15px; margin-top:2px;" /><span><b>${zoneLabel(d.zone)}</b> (${occ}) — roll Perception vs ${tip(`DC ${d.dc}`, TIP_DC)}. Check the box if they beat it.</span></label>`;
+    }).join("");
+    container.innerHTML = `
+      <div style="font-size:13px; margin-bottom:10px; line-height:1.6;">${introText}${haroldEngaged ? " He's an active threat now — combat starts on the roof." : ""}</div>
+      ${checks.length ? `<div style="font-size:13px; margin-bottom:6px;">Roll for each room that hasn't noticed yet, then tick the ones that beat their check — they'll join the fight.</div>${rows}` : ""}
+      <button id="ns-go" style="width:100%; margin-top:12px;">${checks.length ? "continue" : (haroldEngaged ? "start combat — roll for initiative" : "done")}</button>`;
+    container.querySelector("#ns-go").onclick = () => {
+      checks.forEach((d, i) => { if (document.getElementById("ns-" + i).checked) zoneAlert[d.zone] = true; });
+      if (haroldEngaged) { startCombat("roof"); return; }
+      const anyAlerted = checks.some(d => zoneAlert[d.zone]);
+      if (anyAlerted) { startCombat(null); return; }
+      container.innerHTML = `
+        <div style="font-size:13px; margin-bottom:14px; line-height:1.6;">No one downstairs notices. The party can keep sneaking.</div>
+        ${guidanceHtml("Ask what they do next.")}
+        <button id="f-done" style="width:100%; margin-top:10px;">done</button>`;
+      container.querySelector("#f-done").onclick = onDone;
+    };
+  }
+}
+
+// ---------- gag flow (fixed: freeing the mouth enables VERBAL-component spells) ----------
+function flowGag(container, onDone) {
+  container.style.display = "block";
+  step1();
+  function step1() {
+    container.innerHTML = `
+      <div style="font-size:11px; color:var(--text-muted); margin-bottom:8px;">free Wynn's gag</div>
+      <div style="font-size:13px; margin-bottom:6px; line-height:1.6;">Have Wynn roll ${tip("a Dexterity check", PARTY.wynn.dexterity.tip)} against ${tip("DC 18", TIP_DC)}.</div>
+      ${rollFieldsHtml("fgag", true, NAT_EXTRA_CHECK)}
+      <button id="f-next" style="width:100%;">continue</button>`;
+    wireNat("fgag");
+    container.querySelector("#f-next").onclick = () => {
+      const r = readRoll("fgag", 18);
+      if (!r) return;
+      result(r);
+    };
+  }
+  function result(r) {
+    const success = r.ok;
+    wynnGagAttemptedRound = true;
+    wynnGagLast = { success, nat1: r.nat1, nat20: r.nat20 };
+    if (success) findC("wynn").notes = findC("wynn").notes.filter(n => n !== "gagged");
+    renderCombat();
+    renderPresent();
+    const text = success
+      ? "The gag comes free. Her mouth is clear, so she can now cast spells that need spoken words — but her hands are still chained, so spells that need hand gestures are still out."
+      : "The gag stays in place this round.";
+    const guidance = success ? "It's Wynn's turn to play now — the GM runs her. See her options in the combat panel." : "She can try again next round. Continue the scene.";
+    const howClose = r.total == null
+      ? (r.nat20 ? "natural 20 — automatic success" : "natural 1 — automatic fail")
+      : "how close: " + marginFlavor(success ? r.total - 18 : 18 - r.total, success);
+    container.innerHTML = `
+      <div style="font-size:11px; color:var(--text-muted); margin-bottom:4px;">${howClose}</div>
+      <div style="font-size:13px; margin-bottom:14px; line-height:1.6;">${text}</div>
+      ${guidanceHtml(guidance)}
+      <button id="f-done" style="width:100%; margin-top:10px;">done</button>`;
+    doneButton(container, onDone);
+  }
+}
+
+// ---------- unchain Wynn ----------
+function flowUnchain(container, onDone) {
+  container.style.display = "block";
+  if (!hasKey) {
+    runInfoFlow("unchain Wynn with the key", "The party doesn't have the key yet — it's in the small chest on the desk.", "Point them at searching the desk and chest first.", container, onDone);
+    return;
+  }
+  if (wynnFreed) {
+    runInfoFlow("unchain Wynn with the key", "Wynn is already free.", "Continue the scene.", container, onDone);
+    return;
+  }
+  wynnFreed = true;
+  const wynn = findC("wynn");
+  wynn.notes = wynn.notes.filter(n => n !== "chained");
+  renderCombat();
+  renderPresent();
+  const gagLine = wynn.notes.includes("gagged") ? " Her mouth is still gagged, so she can't cast spells that need spoken words until that's dealt with." : "";
+  container.innerHTML = `
+    <div style="font-size:14px; font-weight:500; margin-bottom:10px;">unchain Wynn with the key</div>
+    <div style="font-size:13px; margin-bottom:14px; line-height:1.6;">The key fits — her hands and feet come free. Wynn can move and act now.${gagLine}</div>
+    ${readPointer("Read: the \"Wynn's Items\" note — page 15 (she notices her amulet and ring are missing).")}
+    <div style="font-size:13px; margin-bottom:14px; line-height:1.6; padding:10px 12px; background:var(--bg-accent); border-radius:var(--radius); color:var(--text-accent);"><b>Plot beat:</b> as she gets up, Wynn realizes her mother's amulet and her mentor's ring are gone — she was wearing both when taken. They're on the ruffian leader, who shows up later.</div>
+    ${guidanceHtml("Wynn can now act on her own — the GM runs her. Ask what the party does next.")}
+    <button id="f-done" style="width:100%; margin-top:10px;">done</button>`;
+  doneButton(container, onDone);
+}
+
+// ---------- improvised weapons (corrected 5-row table) ----------
+function flowWeapons(container, onDone) {
+  container.style.display = "block";
+  const rows = [
+    ["Large wrench", "-1", "+1d4"],
+    ["2 ft iron rod", "+0", "+1d4"],
+    ["Wood mallet", "-2", "+1d2"],
+    ["Wood chisel", "+0", "+1d4"],
+    ["Wood saw", "-2", "+1d3"]
+  ];
+  const table = rows.map(r => `<div style="display:flex; justify-content:space-between; padding:4px 0; border-bottom:0.5px solid var(--border); font-size:13px;"><span>${r[0]}</span><span style="color:var(--text-secondary);">${r[1]} to hit · ${r[2]} dmg</span></div>`).join("");
+  container.innerHTML = `
+    <div style="font-size:14px; font-weight:500; margin-bottom:10px;">grab an improvised weapon</div>
+    <div style="font-size:12px; color:var(--text-muted); margin-bottom:6px;">tools on the shelves</div>
+    <div style="margin-bottom:14px;">${table}</div>
+    ${guidanceHtml("Apply the listed to-hit change and bonus damage on their next attack, then continue.")}
+    <button id="f-done" style="width:100%; margin-top:10px;">done</button>`;
+  doneButton(container, onDone);
+}
+
+// ---------- off-menu fallback ----------
+function flowOffMenu(container, onDone) {
+  container.style.display = "block";
+  container.innerHTML = `
+    <div style="font-size:14px; font-weight:500; margin-bottom:10px;">something else?</div>
+    <div style="font-size:13px; margin-bottom:14px; line-height:1.6;">Work out which of these it is, then use your judgement:</div>
+    <div style="font-size:13px; margin-bottom:8px; line-height:1.6;"><b>Moving somewhere</b> — pick the closest movement action above, or just describe where they end up.</div>
+    <div style="font-size:13px; margin-bottom:8px; line-height:1.6;"><b>Attempting something</b> — pick a difficulty: easy ${tip("DC 8", TIP_DC)}, moderate ${tip("DC 12", TIP_DC)}, hard ${tip("DC 15", TIP_DC)}. Ask for a d20 plus whichever ability fits, compare to that.</div>
+    <div style="font-size:13px; margin-bottom:14px; line-height:1.6;"><b>Just looking or asking</b> — no roll. Describe what's there and ask what they do next.</div>
+    <button id="f-done" style="width:100%;">done</button>`;
+  doneButton(container, onDone);
+}
+
+// ---------- reinforcement flow (two-sided who-gets-the-drop) ----------
+// ---------- combat ----------
+function applyDamage(id, amount) {
+  const c = findC(id);
+  c.hp = Math.max(0, c.hp - amount);
+  checkReinforce();
+  renderCombat();
+  renderReminders();
+}
+function checkReinforce() {
+  if (!reinforcementsResolved && combatActive && insideTotal() <= REINFORCE_THRESHOLD) reinforcementsPending = true;
+}
+// modal-driven reinforcement arrival (two-sided "who gets the drop"), then rolls their initiative
+function reinforcementModal(done) {
+  const engagedInside = COMBATANTS.filter(c => c.side === "enemy" && !REINFORCEMENTS.includes(c) && isEngaged(c));
+  const battleOver = engagedInside.length > 0 && engagedInside.every(c => c.hp === 0);
+  step1();
+  // Harold (roof lookout) is the returning ruffians' signal. Book p15 keys the
+  // returners' check on the lookout being "missing"; we surface his status and
+  // rule that a live, roof-alerted lookout auto-warns them (house call, in errata).
+  function lookoutBucket() {
+    const h = findC("harold");
+    if (h.hp === 0) return "down";
+    return zoneAlert.roof ? "alerted" : "unaware";
+  }
+  function lookoutStatusHtml() {
+    const b = lookoutBucket();
+    const line = b === "down"
+      ? "Lookout: <b>Harold is down</b> — no one's watching the approach."
+      : b === "alerted"
+        ? "Lookout: <b>Harold is up on the roof and shouting</b> — he's raising the alarm."
+        : "Lookout: <b>Harold is on the roof but hasn't noticed the fight</b>.";
+    return `<div style="font-size:12px; color:var(--text-secondary); margin-bottom:10px; padding:8px 10px; background:var(--surface-1); border-radius:var(--radius);">${line}</div>`;
+  }
+  function step1() {
+    // a live, alerted lookout shouts and stomps (book p15) — the returners are
+    // warned with no roll; jump straight to the party-awareness question.
+    if (lookoutBucket() === "alerted") {
+      openModal(`
+        <div style="font-size:15px; font-weight:500; margin-bottom:8px;">reinforcements approach</div>
+        ${lookoutStatusHtml()}
+        <div style="font-size:13px; line-height:1.6; margin-bottom:12px;">Harold's shouting and stomping warns them — <b>no check needed</b>. The three returning ruffians (Oberon, Thorpe, O'Dell) come in ready.</div>
+        <button id="r-cont" style="width:100%;">continue</button>`);
+      document.getElementById("r-cont").onclick = () => noticedStep();
+      return;
+    }
+    const dc = battleOver ? 10 : 8;
+    const ctx = battleOver
+      ? "The fight inside is over and their lookout is missing. The three returning ruffians (Oberon, Thorpe, O'Dell) come back and can tell something's off."
+      : "The inside ruffians are nearly beaten. The three returning ruffians (Oberon, Thorpe, O'Dell) come back from fishing.";
+    openModal(`
+      <div style="font-size:15px; font-weight:500; margin-bottom:8px;">reinforcements approach</div>
+      ${lookoutStatusHtml()}
+      <div style="font-size:13px; line-height:1.6; margin-bottom:12px;">${ctx} First — do <b>the returning ruffians</b> notice? Roll one ${tip(`DC ${dc} Perception check`, TIP_DC)} for them — DC 8 while the fight's still going, DC 10 once it's over.</div>
+      <button id="r-yes" style="width:100%; margin-bottom:6px;">they noticed</button>
+      <button id="r-no" style="width:100%;">they didn't notice</button>`);
+    document.getElementById("r-yes").onclick = () => noticedStep();
+    document.getElementById("r-no").onclick = () => failedStep();
+  }
+  function noticedStep() {
+    openModal(`
+      <div style="font-size:15px; font-weight:500; margin-bottom:8px;">reinforcements — they noticed</div>
+      <div style="font-size:13px; line-height:1.6; margin-bottom:12px;">The returning ruffians come in ready. Now — did the <b>party</b> hear them first? Briar rolls ${tip("DC 12 Perception", TIP_DC)}; Tarric and Wynn can each roll ${tip("DC 15 Perception", TIP_DC)} if not too distracted.</div>
+      <button id="p-heard" style="width:100%; margin-bottom:6px;">the party heard them</button>
+      <button id="p-missed" style="width:100%; margin-bottom:6px;">the party didn't hear them</button>
+      <button id="p-back" style="width:100%;">back</button>`);
+    document.getElementById("p-heard").onclick = () => finish("The party heard them in time — no free attack. They join the fight; roll their initiative next.");
+    document.getElementById("p-missed").onclick = () => finish("The party didn't hear them — each returning ruffian gets one free attack before initiative.", "reinf-to-party");
+    document.getElementById("p-back").onclick = () => step1();
+  }
+  function failedStep() {
+    if (!battleOver) {
+      finish("They don't notice the disturbance and wander in as normal — no free attack for anyone. Roll their initiative next.");
+      return;
+    }
+    openModal(`
+      <div style="font-size:15px; font-weight:500; margin-bottom:8px;">reinforcements — they're unaware</div>
+      <div style="font-size:13px; line-height:1.6; margin-bottom:12px;">They walk in completely unaware. Anyone still inside rolls ${tip("a DC 8 Perception check", TIP_DC)} — on a success, the party gets a free attack on them.</div>
+      <button id="in-yes" style="width:100%; margin-bottom:6px;">those inside succeeded</button>
+      <button id="in-no" style="width:100%; margin-bottom:6px;">those inside failed</button>
+      <button id="in-back" style="width:100%;">back</button>`);
+    document.getElementById("in-back").onclick = () => step1();
+    document.getElementById("in-yes").onclick = () => finish("They walk in completely unaware — and the party gets a free attack on them.", "party-to-reinf");
+    document.getElementById("in-no").onclick = () => finish("They walk in completely unaware. Nobody inside noticed in time for a free attack. Roll their initiative next.");
+  }
+  // freeAttack: null | "reinf-to-party" | "party-to-reinf" — resolved in-modal,
+  // one attacker at a time, before initiative (rather than left to narration).
+  function finish(text, freeAttack) {
+    // nothing is committed until this button — so "back" stays safe.
+    openModal(`
+      <div style="font-size:13px; line-height:1.6; margin-bottom:14px;">${text}</div>
+      <button id="r-init" style="width:100%; margin-bottom:6px;">${freeAttack ? "resolve free attacks" : "roll the newcomers' initiative"}</button>
+      <button id="r-back2" style="width:100%;">back</button>`);
+    document.getElementById("r-back2").onclick = () => step1();
+    document.getElementById("r-init").onclick = () => {
+      reinforcementsResolved = true;
+      reinforcementsPending = false;
+      REINFORCEMENTS.forEach(r => { if (!COMBATANTS.includes(r)) { r.engaged = true; COMBATANTS.push(r); } });
+      const ra = document.getElementById("reinforce-alert");
+      if (ra) ra.style.display = "none";
+      const goInit = () => runInitiative(() => { renderCombat(); if (done) done(); });
+      if (freeAttack === "reinf-to-party") {
+        freeAttackSequence(REINFORCEMENTS.filter(r => r.hp > 0), goInit);
+      } else if (freeAttack === "party-to-reinf") {
+        const attackers = COMBATANTS.filter(c => c.side === "party" && c.hp > 0 && !(c.id === "wynn" && wynnChained()));
+        freeAttackSequence(attackers, goInit);
+      } else {
+        goInit();
+      }
+    };
+  }
+}
+// Resolve one free attack per attacker in sequence (in-modal, via the shared
+// attack chain), then continue. Used for reinforcement free attacks in either
+// direction — outside the normal turn loop, so no action economy is touched.
+function freeAttackSequence(attackers, afterAll) {
+  let i = 0;
+  (function step() {
+    if (i >= attackers.length) { afterAll(); return; }
+    const att = attackers[i];
+    const atks = att.attacks || [];
+    if (!atks.length) { i += 1; step(); return; }
+    const proceed = (atk) => attackTarget(att, atk, () => { i += 1; step(); });
+    if (atks.length > 1) chooseFreeAttack(att, proceed);
+    else proceed(atks[0]);
+  })();
+}
+function chooseFreeAttack(attacker, cb) {
+  const opts = attacker.attacks.map((a, i) => `<button class="fa-pick" data-i="${i}" style="display:block; width:100%; text-align:left; padding:9px 12px; margin-bottom:6px;">${a.n} <span style="color:var(--text-secondary); font-size:12px;">${signed(a.mod)} to hit · ${a.dmg}</span></button>`).join("");
+  openModal(`
+    <div style="font-size:11px; color:var(--text-muted); margin-bottom:8px;">free attack — ${attacker.name}</div>
+    <div style="font-size:13px; margin-bottom:10px;">Which attack?</div>
+    ${opts}`);
+  document.querySelectorAll(".fa-pick").forEach(b => { b.onclick = () => cb(attacker.attacks[+b.getAttribute("data-i")]); });
+}
+
+function turnPromptHtml(cur) {
+  if (!cur) return "";
+  const gm = isGmControlled(cur);
+  const bg = gm ? "var(--bg-warning)" : "var(--surface-2)";
+  const col = gm ? "var(--text-warning)" : "var(--text-secondary)";
+  const label = gm ? `${cur.name}'s turn — the GM plays them` : `${cur.name}'s turn — their player acts`;
+  return `<div class="${gm ? "gm-pulse" : ""}" style="display:flex; align-items:center; justify-content:space-between; gap:8px; padding:9px 12px; margin-bottom:10px; background:${bg}; border-radius:var(--radius);">
+    <span style="font-size:12px; color:${col}; line-height:1.4;"><b>${label}</b></span>
+    <button id="tp-open" style="font-size:12px; padding:5px 10px; white-space:nowrap;">play turn</button>
+  </div>`;
+}
+// advance the turn, but interject any round-level events (reinforcements
+// arriving, per-round loud-noise checks) as modals before the next turn.
+function endTurn() {
+  const before = round;
+  nextTurn();
+  runRoundEvents(before, () => openTurnModal());
+}
+function runRoundEvents(prevRound, done) {
+  if (reinforcementsPending && !reinforcementsResolved) {
+    reinforcementModal(() => runRoundEvents(prevRound, done));
+    return;
+  }
+  if (round > prevRound && loudCheckedRound !== round && hearingChecks().length) {
+    loudCheckedRound = round;
+    runLoudNoise(() => { renderCombat(); runRoundEvents(prevRound, done); });
+    return;
+  }
+  done();
+}
+const USED_REASON = "action already used — one per turn";
+function characterActions(cur) {
+  const acts = [];
+  // Freeing the gag is not gated by the action economy (house call — see errata).
+  if (cur.id === "wynn" && wynnGagged()) {
+    acts.push({ label: "try to free her gag", sub: "DC 18 Dexterity · once per round", available: !wynnGagAttemptedRound, reason: "already tried this round", run: () => rollGagModal() });
+  }
+  // Agatha's tactic: cast True Strike (her whole action) to set up advantage next turn.
+  const agathaPrimed = cur.id === "agatha" && cur.notes.includes("aim (True Strike)");
+  if (cur.id === "agatha" && !agathaPrimed) {
+    acts.push({ label: "cast True Strike", sub: "her action · sets up advantage next turn", available: !actionUsed, reason: USED_REASON, run: () => {
+      cur.notes.push("aim (True Strike)");
+      actionUsed = true;
+      renderCombat();
+      narrateModal(cur, "Agatha casts True Strike — she takes aim but doesn't attack this turn. Next turn her shortsword is rolled with advantage. That's her action; end her turn.");
+    } });
+  }
+  (cur.attacks || []).forEach(a => {
+    const handsBlocked = cur.id === "wynn" && a.hands && wynnChained();
+    const available = !handsBlocked && !actionUsed;
+    const reason = handsBlocked ? "hands still chained" : USED_REASON;
+    acts.push({ label: `${a.n} attack${agathaPrimed ? " (advantage)" : ""}`, sub: `${signed(a.mod)} to hit · ${a.dmg} damage${agathaPrimed ? " · True Strike: roll two d20, take the higher" : ""}`, available, reason, run: () => attackTarget(cur, a) });
+  });
+  if (cur.caster) {
+    const gagged = wynnGagged();
+    const available = !gagged && !actionUsed;
+    const reason = gagged ? "gagged — she can't speak" : USED_REASON;
+    acts.push({ label: "cast a spell", sub: "her spell list, pages 67-70" + (wynnChained() ? " · verbal-only while chained" : ""), available, reason, run: () => { actionUsed = true; narrateModal(cur, "Wynn casts a spell she knows — look it up on her sheet (pages 67-70), resolve its effect, then end her turn." + (wynnChained() ? " Her hands are chained, so only spells that need spoken words alone." : "")); } });
+  }
+  return acts;
+}
+function openTurnModal() {
+  const cur = currentTurn();
+  if (!cur) { closeModal(); return; }
+  const gm = isGmControlled(cur);
+  const who = gm ? (cur.id === "wynn" ? "the GM plays Wynn" : "the GM plays them") : `${cur.name}'s player takes the action`;
+  const acts = characterActions(cur);
+  const actHtml = acts.map((a, i) => a.available
+    ? `<button class="turn-act" data-i="${i}" style="display:block; width:100%; text-align:left; padding:9px 12px; margin-bottom:6px;"><div style="font-size:13px;">${a.label}</div><div style="font-size:11px; color:var(--text-accent);">${a.sub}</div></button>`
+    : `<div style="padding:9px 12px; margin-bottom:6px; border:0.5px dashed var(--border); border-radius:var(--radius); opacity:0.6;"><div style="font-size:13px; text-decoration:line-through;">${a.label}</div><div style="font-size:11px; color:var(--text-muted);">can't right now — ${a.reason}</div></div>`
+  ).join("");
+  const tac = (gm && cur.tactics) ? `<div style="font-size:12px; color:var(--text-secondary); margin-bottom:10px;">tactics — ${cur.tactics}</div>` : "";
+  const note = gm ? "" : `<div style="font-size:12px; color:var(--text-secondary); margin-bottom:10px;">Their player rolls and describes the action. Use the options below to resolve a hit and record damage without leaving this modal.</div>`;
+  openModal(`
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+      <span style="font-size:11px; color:var(--text-muted);">round ${round} · whose turn</span>
+      <button id="tm-close" style="font-size:12px; padding:3px 9px;">close</button>
+    </div>
+    <div style="font-size:15px; font-weight:500; margin-bottom:2px;">${cur.name}</div>
+    <div style="font-size:12px; color:var(--text-secondary); margin-bottom:10px;">${who}</div>
+    <div style="font-size:11px; color:var(--text-secondary); margin-bottom:10px; padding:7px 10px; background:var(--surface-1); border-radius:var(--radius); line-height:1.5;">a turn is: <b>①</b> move if they want <span style="color:var(--text-muted);">(reposition the token — free)</span> · <b>②</b> one action · <b>③</b> end turn</div>
+    ${note}${tac}
+    <div style="font-size:11px; color:var(--text-muted); margin-bottom:4px;">options</div>
+    ${actHtml || `<div style="font-size:13px; color:var(--text-secondary); margin-bottom:8px;">No special options — narrate their action.</div>`}
+    <button id="tm-end" style="width:100%; margin-top:8px;">end turn <i class="ti ti-chevron-right" style="font-size:12px; vertical-align:-2px;" aria-hidden="true"></i></button>`);
+  document.getElementById("tm-close").onclick = () => closeModal();
+  document.getElementById("tm-end").onclick = () => endTurn();
+  document.querySelectorAll(".turn-act").forEach(b => { b.onclick = () => acts[+b.getAttribute("data-i")].run(); });
+}
+function narrateModal(cur, text) {
+  openModal(`<div style="font-size:13px; line-height:1.6; margin-bottom:14px;">${text}</div>
+    <button id="nm-back" style="width:100%;">back to ${cur.name}'s turn</button>`);
+  document.getElementById("nm-back").onclick = () => openTurnModal();
+}
+// onResolved (optional): when provided, this is a FREE attack outside the normal
+// turn loop (e.g. reinforcement free attacks) — no turn to end, no action spent.
+function attackTarget(attacker, attack, onResolved) {
+  const targets = currentFighters().filter(c => c.side !== attacker.side && c.hp > 0);
+  if (!targets.length) {
+    if (onResolved) { onResolved(); return; }
+    narrateModal(attacker, "No valid targets are in the fight right now.");
+    return;
+  }
+  const btns = targets.map((t, i) => `<button class="atk-t" data-i="${i}" style="display:block; width:100%; text-align:left; padding:8px 12px; margin-bottom:6px;">${t.name} <span style="color:var(--text-secondary); font-size:12px;">— AC ${t.ac} · hp ${t.hp}/${t.maxHp}</span></button>`).join("");
+  openModal(`
+    <div style="font-size:11px; color:var(--text-muted); margin-bottom:6px;">${attacker.name} · ${attack.n}</div>
+    <div style="font-size:13px; margin-bottom:10px;">Who are they attacking?</div>
+    ${btns}
+    ${onResolved ? "" : `<button id="atk-back" style="width:100%; margin-top:4px;">back</button>`}`);
+  if (!onResolved) document.getElementById("atk-back").onclick = () => openTurnModal();
+  document.querySelectorAll(".atk-t").forEach(b => { b.onclick = () => attackToHit(attacker, attack, targets[+b.getAttribute("data-i")], onResolved); });
+}
+function attackToHit(attacker, attack, target, onResolved) {
+  const ask = isGmControlled(attacker) ? `Roll ${attacker.name}'s ${attack.n}` : `Ask ${attacker.name}'s player to roll the ${attack.n}`;
+  openModal(`
+    <div style="font-size:11px; color:var(--text-muted); margin-bottom:6px;">${attacker.name} → ${target.name}</div>
+    <div style="font-size:13px; line-height:1.6; margin-bottom:8px;">${ask}: a d20 ${signed(attack.mod)} to hit, against ${tip(`${target.name}'s AC, ${target.ac}`, TIP_AC)}.</div>
+    ${(attacker.notes || []).includes("aim (True Strike)") ? `<div style="font-size:12px; color:var(--text-accent); margin-bottom:8px;">Roll with <b>advantage</b> (True Strike) — roll two d20 and use the higher total.</div>` : ""}
+    ${rollFieldsHtml("hit", true)}
+    <button id="hit-go" style="width:100%; margin-bottom:6px;">resolve</button>
+    <button id="hit-back" style="width:100%;">back</button>`);
+  wireNat("hit");
+  document.getElementById("hit-back").onclick = () => attackTarget(attacker, attack, onResolved);
+  document.getElementById("hit-go").onclick = () => {
+    const r = readRoll("hit", target.ac);
+    if (!r) return;
+    if (r.ok) attackDamage(attacker, attack, target, r.nat20, onResolved);
+    else attackResult(attacker, `The ${attack.n} misses ${target.name}.${r.nat1 ? " (natural 1 — automatic miss)" : ""}`, onResolved);
+  };
+}
+function attackDamage(attacker, attack, target, crit, onResolved) {
+  openModal(`
+    <div style="font-size:11px; color:var(--text-muted); margin-bottom:6px;">${attacker.name} → ${target.name} · hit${crit ? " · critical!" : ""}</div>
+    <div style="font-size:13px; line-height:1.6; margin-bottom:8px;">It hits! Roll ${attack.dmg} damage${crit ? " — <b>critical hit: roll the damage dice twice</b>" : ""} and enter the total.</div>
+    ${attack.rider ? `<div style="font-size:12px; color:var(--text-secondary); margin-bottom:8px; padding:7px 10px; background:var(--surface-1); border-radius:var(--radius);">Also: ${attack.rider}</div>` : ""}
+    <input id="dmg-in" type="number" placeholder="damage total" style="width:100%; margin-bottom:6px;" />
+    <div id="dmg-err" style="display:none; color:var(--text-danger); font-size:12px; margin-bottom:6px;">Enter a number.</div>
+    <button id="dmg-go" style="width:100%; margin-bottom:6px;">apply damage</button>
+    <button id="dmg-back" style="width:100%;">back</button>`);
+  document.getElementById("dmg-in").focus();
+  document.getElementById("dmg-back").onclick = () => attackToHit(attacker, attack, target, onResolved);
+  document.getElementById("dmg-go").onclick = () => {
+    const v = parseInt(document.getElementById("dmg-in").value, 10);
+    if (isNaN(v) || v < 0) { document.getElementById("dmg-err").style.display = "block"; return; }
+    applyDamage(target.id, v);
+    const t = findC(target.id);
+    attackResult(attacker, `${target.name} takes ${v} damage${t.hp === 0 ? " and drops!" : ` — now ${t.hp}/${t.maxHp}`}.` + (attack.rider && t.hp > 0 ? ` ${attack.rider}` : ""), onResolved);
+  };
+}
+function attackResult(attacker, text, onResolved) {
+  if (onResolved) {
+    openModal(`
+      <div style="font-size:13px; line-height:1.6; margin-bottom:14px;">${text}</div>
+      <button id="ar-next" style="width:100%;">continue</button>`);
+    document.getElementById("ar-next").onclick = onResolved;
+    return;
+  }
+  actionUsed = true; // the attack was this combatant's one action
+  // Agatha's True Strike aim is spent the moment she attacks
+  if (attacker.id === "agatha") { const ag = findC("agatha"); ag.notes = ag.notes.filter(n => n !== "aim (True Strike)"); renderCombat(); }
+  const reinf = (reinforcementsPending && !reinforcementsResolved)
+    ? `<div style="padding:9px 12px; margin-bottom:10px; background:var(--bg-danger); border-radius:var(--radius);">
+        <div style="font-size:12px; color:var(--text-danger); line-height:1.5; margin-bottom:6px;">The inside ruffians are nearly down — three reinforcements are arriving.</div>
+        <button id="ar-reinf" style="font-size:12px; padding:5px 10px;">resolve reinforcements now</button>
+      </div>` : "";
+  openModal(`
+    <div style="font-size:13px; line-height:1.6; margin-bottom:14px;">${text}</div>
+    ${reinf}
+    <button id="ar-end" style="width:100%; margin-bottom:6px; border-color:var(--fill-accent); color:var(--text-accent);">end ${attacker.name}'s turn <i class="ti ti-chevron-right" style="font-size:12px; vertical-align:-2px;" aria-hidden="true"></i></button>
+    <button id="ar-more" style="width:100%;">back to options <span style="color:var(--text-muted);">— action spent</span></button>`);
+  const rb = document.getElementById("ar-reinf");
+  if (rb) rb.onclick = () => reinforcementModal(() => openTurnModal());
+  document.getElementById("ar-more").onclick = () => openTurnModal();
+  document.getElementById("ar-end").onclick = () => endTurn();
+}
+function rollGagModal() {
+  const mod = PARTY.wynn.dexterity;
+  openModal(`
+    <div style="font-size:15px; font-weight:500; margin-bottom:8px;">Wynn's gag</div>
+    <div style="font-size:13px; line-height:1.6; margin-bottom:10px;">Wynn rolls ${tip("a Dexterity check", mod.tip)} against ${tip("DC 18", TIP_DC)}.</div>
+    ${rollFieldsHtml("gag", true, NAT_EXTRA_CHECK)}
+    <button id="gag-go" style="width:100%; margin-bottom:6px;">resolve</button>
+    <button id="gag-back" style="width:100%;">back</button>`);
+  wireNat("gag");
+  document.getElementById("gag-back").onclick = () => openTurnModal();
+  document.getElementById("gag-go").onclick = () => {
+    const r = readRoll("gag", 18);
+    if (!r) return;
+    wynnGagAttemptedRound = true;
+    wynnGagLast = { success: r.ok, nat1: r.nat1, nat20: r.nat20 };
+    // House rule (see errata): a success frees the gag AND still lets her act this
+    // turn; a failed attempt was her action, so it's spent.
+    if (r.ok) findC("wynn").notes = findC("wynn").notes.filter(n => n !== "gagged");
+    else actionUsed = true;
+    renderCombat(); renderPresent();
+    const text = r.ok
+      ? "The gag comes free! Because it was such a hard pull, she still gets to act this turn — she can cast a spell that needs only spoken words (her hands are still chained), or move."
+      : "The gag holds. Wrestling with it was her action this turn, so that's it — she can still move, and try again next round.";
+    openModal(`
+      <div style="font-size:15px; font-weight:500; margin-bottom:8px;">Wynn's gag — ${r.ok ? "free!" : "still stuck"}</div>
+      <div style="font-size:13px; line-height:1.6; margin-bottom:14px;">${text}</div>
+      <button id="gag-cont" style="width:100%;">back to Wynn's turn</button>`);
+    document.getElementById("gag-cont").onclick = () => openTurnModal();
+  };
+}
+function combatRow(c) {
+  const notes = c.notes.length ? c.notes.map(n => `<span style="display:inline-block; padding:2px 6px; margin-right:4px; background:var(--bg-warning); color:var(--text-warning); border-radius:8px; font-size:11px;">${n}</span>`).join("") : "";
+  const isCur = combatActive && c.id === currentTurnId;
+  const row = document.createElement("div");
+  row.style.cssText = `display:flex; align-items:center; gap:8px; padding:8px 10px; background:${isCur ? "var(--bg-accent)" : "var(--surface-2)"}; border-radius:var(--radius);${isCur ? " box-shadow: inset 3px 0 0 var(--fill-accent);" : ""}`;
+  row.innerHTML = `
+    <div style="width:26px; text-align:center; font-size:13px; font-weight:500; color:var(--text-secondary);" title="initiative">${c.initRoll == null ? "—" : c.initRoll}</div>
+    <div style="flex:1;">
+      <div style="font-size:13px; font-weight:500;">${c.name}${isCur ? ` <span style="font-size:10px; color:var(--text-accent); font-weight:400;">◄ turn</span>` : ""}${c.role ? ` <span style="font-weight:400; color:var(--text-secondary);">— ${c.role}</span>` : ""}</div>
+      <div style="font-size:12px; color:var(--text-secondary);">hp ${c.hp} / ${c.maxHp}${c.hp === 0 ? " — down" : ""} · AC ${c.ac}${notes ? " " + notes : ""}</div>
+    </div>
+    <input type="number" min="0" placeholder="dmg" style="width:52px;" id="dmg-${c.id}" />
+    <button id="hit-${c.id}" style="font-size:12px; padding:6px 10px;">hit</button>`;
+  return row;
+}
+function wireRow(c) {
+  document.getElementById("hit-" + c.id).onclick = () => {
+    const inp = document.getElementById("dmg-" + c.id);
+    const dmg = parseInt(inp.value, 10);
+    if (!dmg || dmg < 0) return;
+    inp.value = "";
+    applyDamage(c.id, dmg);
+  };
+}
+
+function renderCombat() {
+  const panel = document.getElementById("combat-panel");
+  if (!combatActive) {
+    // Only offer a manual combat-start when the current room actually has a
+    // living, unengaged threat — otherwise "start combat" has no one to fight
+    // and rolls initiative for the party against nobody.
+    const loc = LOCATIONS[currentLoc];
+    const threat = (loc.threats || []).map(findC).find(c => c.hp > 0 && !isEngaged(c));
+    const rightSide = threat
+      ? `<span style="display:flex; align-items:center; gap:2px; white-space:nowrap;"><button id="start-combat" style="font-size:12px; padding:4px 9px; color:var(--text-secondary);">a fight broke out</button>${tip("", "Fights usually start on their own — when you shoot the lookout or a sneak check fails. Only use this if combat kicks off some other way, like the party walking in and swinging.")}</span>`
+      : `<span style="font-size:12px; color:var(--text-muted);">no threats here to fight</span>`;
+    panel.innerHTML = `<div style="display:flex; align-items:center; justify-content:space-between; gap:8px; padding:8px 12px; background:var(--surface-1); border-radius:var(--radius);">
+      <span style="font-size:13px; color:var(--text-muted);"><i class="ti ti-swords" style="font-size:14px; vertical-align:-2px; margin-right:4px;" aria-hidden="true"></i>no fight yet — exploring</span>
+      ${rightSide}
+    </div>`;
+    if (threat) document.getElementById("start-combat").onclick = () => { startCombat(threat.zone); };
+    return;
+  }
+  const alertBits = Object.keys(zoneAlert).filter(z => zoneAlert[z]);
+  const alertLine = alertBits.length ? `<div style="font-size:12px; color:var(--text-secondary); margin-bottom:8px;">alerted: ${alertBits.join(", ")} <span style="color:var(--text-muted);">· rooms not listed haven't noticed yet</span></div>` : "";
+  const cur = currentTurn();
+  panel.innerHTML = `
+    <div style="padding:12px; background:var(--surface-1); border-radius:12px;">
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; gap:8px;">
+        <div style="font-size:13px; color:var(--text-secondary);">round <span id="round-num">${round}</span>${cur ? ` · <span style="color:var(--text-primary);">${cur.name}'s turn</span>` : ""}</div>
+        <div style="display:flex; gap:6px;">
+          <button id="next-turn" style="font-size:12px; padding:5px 10px;">next turn <i class="ti ti-chevron-right" style="font-size:12px; vertical-align:-2px;" aria-hidden="true"></i></button>
+          <button id="end-combat" style="font-size:12px; padding:5px 10px;">end combat</button>
+        </div>
+      </div>
+      ${alertLine}
+      ${turnPromptHtml(cur)}
+      <div style="font-size:11px; color:var(--text-muted); margin-bottom:4px;">party</div>
+      <div id="roster-party" style="display:flex; flex-direction:column; gap:6px; margin-bottom:10px;"></div>
+      <div style="font-size:11px; color:var(--text-muted); margin-bottom:4px;">enemies</div>
+      <div id="roster-enemy" style="display:flex; flex-direction:column; gap:6px;"></div>
+      <div id="combined-hp" style="font-size:13px; margin-top:8px;"></div>
+      <div id="reinforce-alert" style="display:none; margin-top:10px; padding:10px 12px; background:var(--bg-danger); border-radius:var(--radius); font-size:13px;"></div>
+    </div>`;
+  const byInit = (a, b) => ((b.initRoll == null ? -999 : b.initRoll)) - ((a.initRoll == null ? -999 : a.initRoll));
+  const pRoster = document.getElementById("roster-party");
+  const eRoster = document.getElementById("roster-enemy");
+  const party = COMBATANTS.filter(c => c.side === "party").slice().sort(byInit);
+  const enemies = COMBATANTS.filter(c => c.side === "enemy" && isEngaged(c)).slice().sort(byInit);
+  party.forEach(c => pRoster.appendChild(combatRow(c)));
+  enemies.forEach(c => eRoster.appendChild(combatRow(c)));
+  party.concat(enemies).forEach(wireRow);
+  const total = insideTotal();
+  document.getElementById("combined-hp").innerHTML = `<span style="color:${total <= REINFORCE_THRESHOLD ? "var(--text-danger)" : "var(--text-secondary)"};">inside group combined hp: ${total}</span> <span style="color:var(--text-muted);">— reinforcements at ${REINFORCE_THRESHOLD}</span>`;
+  document.getElementById("next-turn").onclick = () => endTurn();
+  document.getElementById("end-combat").onclick = () => { combatActive = false; currentTurnId = null; renderCombat(); renderReminders(); };
+  const tpOpen = document.getElementById("tp-open");
+  if (tpOpen) tpOpen.onclick = () => openTurnModal();
+  checkReinforce();
+  const ra = document.getElementById("reinforce-alert");
+  if (ra && reinforcementsPending && !reinforcementsResolved) {
+    ra.style.display = "block";
+    ra.innerHTML = `<div style="color:var(--text-danger); font-size:12px; line-height:1.5;">Reinforcements are approaching — resolve them at the end of this turn (or from an attack result).</div>`;
+  }
+}
+
+// ---------- reminders ----------
+function downedPartyMembers() { return COMBATANTS.filter(c => c.side === "party" && c.hp === 0); }
+function renderReminders() {
+  const bar = document.getElementById("reminders");
+  const downed = combatActive ? downedPartyMembers() : [];
+  const showNoise = combatActive && hearingChecks().length > 0;
+  const show = showNoise || downed.length > 0;
+  bar.style.display = show ? "flex" : "none";
+  bar.innerHTML = "";
+  if (!show) return;
+  // A downed PC is the scariest rules moment for a novice's first fight — the app
+  // tracks HP but death saves are rolled on real dice, so this just teaches the rule.
+  downed.forEach(c => {
+    const banner = document.createElement("div");
+    banner.style.cssText = "display:flex; align-items:center; gap:6px; font-size:13px; padding:6px 10px; background:var(--bg-danger); color:var(--text-danger); border-radius:var(--radius);";
+    banner.innerHTML = `<i class="ti ti-heartbeat" style="font-size:15px;" aria-hidden="true"></i>${c.name} is down — at 0 HP, roll a plain d20 (no modifier) at the start of each of their turns: 10+ succeeds, under 10 fails. 3 successes stabilizes them; 3 failures and they die. A natural 20 heals 1 HP and wakes them up. Taking damage while down is an automatic failure (2 on a critical hit).`;
+    bar.appendChild(banner);
+  });
+  if (showNoise) {
+    const chip = document.createElement("button");
+    chip.style.cssText = "display:flex; align-items:center; gap:6px; font-size:13px; padding:6px 10px; background:var(--surface-2); border-radius:var(--radius);";
+    chip.innerHTML = `<i class="ti ti-volume" style="font-size:15px; color:var(--text-warning);" aria-hidden="true"></i>check if other rooms hear the fight`;
+    chip.onclick = () => runLoudNoise(() => { closeModal(); renderCombat(); renderReminders(); });
+    bar.appendChild(chip);
+  }
+}
+
+// ---------- present here (player party / GM plays / threats) ----------
+// Who plays whom is per-scenario. Scenario 1: player runs Tarric + Briar,
+// the GM plays Wynn. This flips when the GM role rotates in later scenarios.
+function playerPartyPresent() { return [findC("tarric"), findC("briar")].filter(Boolean); }
+function gmPartyPresent() {
+  const wynn = findC("wynn");
+  return (currentLoc === "room1" || wynnFreed) ? [wynn] : [];
+}
+function chip(c, kind, color) {
+  const captured = c.notes.includes("gagged") || c.notes.includes("chained");
+  const badge = captured ? ` <span style="font-size:10px; padding:1px 5px; background:var(--bg-warning); color:var(--text-warning); border-radius:6px;">captured</span>` : "";
+  const bc = color === "danger" ? " border-color:var(--border-danger);" : "";
+  return `<button class="gm-btn present-chip" data-id="${c.id}" data-kind="${kind}" style="font-size:13px; padding:6px 10px;${bc}"><i class="ti ti-user" style="font-size:13px; vertical-align:-2px; margin-right:3px; color:var(--text-${color});" aria-hidden="true"></i>${c.name}${badge}</button>`;
+}
+function groupHtml(label, icon, color, chips) {
+  if (!chips.length) return "";
+  return `<div style="font-size:11px; color:var(--text-muted); margin-bottom:4px;"><i class="ti ${icon}" style="font-size:13px; vertical-align:-2px; margin-right:3px; color:var(--text-${color});" aria-hidden="true"></i>${label}</div><div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px;">${chips.join("")}</div>`;
+}
+function renderPresent() {
+  const wrap = document.getElementById("present-wrap");
+  const loc = LOCATIONS[currentLoc];
+  const threats = (loc.threats || []).map(findC).filter(c => c.hp > 0 || !combatActive);
+  let html = "";
+  html += groupHtml("your party — player runs", "ti-heart", "success", playerPartyPresent().map(c => chip(c, "party", "success")));
+  html += groupHtml("GM plays", "ti-star", "accent", gmPartyPresent().map(c => chip(c, "party", "accent")));
+  html += groupHtml("threats here", "ti-swords", "danger", threats.map(c => chip(c, "threat", "danger")));
+  html += `<div id="present-detail" style="display:none; margin-top:10px; padding:1rem 1.25rem; background:var(--surface-1); border-radius:12px;"></div>`;
+  wrap.innerHTML = html;
+  wrap.querySelectorAll(".present-chip").forEach(btn => {
+    btn.onclick = () => {
+      clearSelected(wrap);
+      btn.classList.add("is-selected");
+      const c = findC(btn.getAttribute("data-id"));
+      const kind = btn.getAttribute("data-kind");
+      const d = document.getElementById("present-detail");
+      d.style.display = "block";
+      if (kind === "party") {
+        const cond = c.notes.length ? c.notes.join(", ") : "none";
+        const who = isGmControlled(c) ? "The GM plays this character in this scenario." : "The player runs this character — their sheet has the full details.";
+        d.innerHTML = `<div style="font-size:15px; font-weight:500; margin-bottom:6px;">${c.name}</div>
+          <div style="font-size:13px;"><span style="color:var(--text-secondary);">hp</span> ${c.hp} / ${c.maxHp} · <span style="color:var(--text-secondary);">conditions</span> ${cond}</div>
+          <div style="font-size:12px; color:var(--text-muted); margin-top:6px;">${who}</div>`;
+      } else {
+        d.innerHTML = `<div style="font-size:15px; font-weight:500; margin-bottom:2px;">${c.name}</div>
+          <div style="font-size:13px; color:var(--text-secondary); margin-bottom:10px;">${c.role || ""}</div>
+          <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; margin-bottom:10px;">
+            <div><div style="font-size:12px; color:var(--text-muted);">hp</div><div style="font-size:14px; font-weight:500;">${c.hp} / ${c.maxHp}</div></div>
+            <div><div style="font-size:12px; color:var(--text-muted);">ac</div><div style="font-size:14px; font-weight:500;">${c.ac}</div></div>
+            <div><div style="font-size:12px; color:var(--text-muted);">init</div><div style="font-size:14px; font-weight:500;">${c.init === null ? "—" : c.init}</div></div>
+          </div>
+          <div style="font-size:13px; margin-bottom:6px;"><span style="color:var(--text-secondary);">attacks —</span> ${c.atk}</div>
+          <div style="font-size:13px;"><span style="color:var(--text-secondary);">tactics —</span> ${c.tactics || "—"}</div>`;
+      }
+    };
+  });
+}
+
+// ---------- location / actions ----------
+function setLocation(key) {
+  currentLoc = key;
+  document.getElementById("loc-name").textContent = LOCATIONS[key].name;
+  renderReadAloud();
+  renderPresent();
+  renderActions();
+}
+function renderReadAloud() {
+  const loc = LOCATIONS[currentLoc];
+  const card = document.getElementById("ra-card");
+  if (!loc.read) { card.style.display = "none"; return; }
+  card.style.display = "flex";
+  document.getElementById("ra-label").textContent = loc.read;
+}
+
+function clearSelected(container) {
+  if (container) container.querySelectorAll(".is-selected").forEach(el => el.classList.remove("is-selected"));
+}
+function actionBtn(label, tag, onClick) {
+  const b = document.createElement("button");
+  b.className = "gm-btn";
+  b.style.cssText = "text-align:left; padding:10px 12px; height:auto;";
+  b.innerHTML = `<div style="font-size:13px; margin-bottom:3px;">${label}</div>${tag ? `<div style="font-size:11px; color:var(--text-accent);">${tag}</div>` : ""}`;
+  b.onclick = () => { clearSelected(document.getElementById("actions")); b.classList.add("is-selected"); onClick(); };
+  return b;
+}
+function renderActions() {
+  const loc = LOCATIONS[currentLoc];
+  const wrap = document.getElementById("actions");
+  wrap.innerHTML = "";
+  // every exploration resolution now runs in a dismissable modal (retired the
+  // inline #detail panel). runFlow opens the modal and hands the flow its
+  // content element plus closeModal as the "done" callback.
+  const runFlow = (starter) => { const c = flowModal(); starter(c, closeModal); };
+
+  (loc.looks || []).forEach(a => wrap.appendChild(actionBtn(a.label, "look, stay put", () => runFlow((c, done) => runInfoFlow(a.label, a.body, a.guidance, c, done, a.read)))));
+
+  (loc.enters || []).forEach(a => {
+    if (a.noRoll) {
+      const dest = LOCATIONS[a.to];
+      const destRead = dest ? dest.read : null;
+      const seen = (dest && dest.threats || []).map(findC).filter(c => c.hp > 0 && !zoneAlert[c.zone]);
+      if (seen.length) {
+        const names = seen.length === 2 ? `${seen[0].name} and ${seen[1].name}` : seen.map(c => c.name).join(", ");
+        const zone = seen[0].zone;
+        wrap.appendChild(actionBtn(a.label, "they'll see you", () => runFlow((c, done) => runInfoFlow(
+          a.label,
+          `They step in openly — ${names} look up and see them at once. There's no sneaking now.`,
+          `This is a face-to-face confrontation. Roll for initiative — combat starts. The party can still try to talk on their turns; if they defuse it, the GM can end combat.`,
+          c,
+          () => { setLocation(a.to); startCombat(zone); },
+          destRead))));
+      } else {
+        wrap.appendChild(actionBtn(a.label, "free", () => runFlow((c, done) => runInfoFlow(a.label, "No roll needed.", a.guidance, c, () => { closeModal(); setLocation(a.to); }, destRead))));
+      }
+    } else if (a.roomWindow) {
+      wrap.appendChild(actionBtn(a.label, a.tag || "2 checks", () => runFlow((c, done) => flowRoomWindow(a, c, done))));
+    } else {
+      wrap.appendChild(actionBtn(a.label, a.tag || a.targetLabel, () => runFlow((c, done) => runCheckFlow(a, c, done))));
+    }
+  });
+
+  (loc.local || []).forEach(a => {
+    if (a.kind === "attack") wrap.appendChild(actionBtn(a.label, "attack roll", () => runFlow((c, done) => flowShootLookout(c, done))));
+    else if (a.kind === "gag") wrap.appendChild(actionBtn(a.label, "DC 18 Dexterity", () => runFlow((c, done) => flowGag(c, done))));
+    else if (a.kind === "unchain") wrap.appendChild(actionBtn(a.label, wynnFreed ? "done" : hasKey ? "ready" : "need the key", () => runFlow((c, done) => flowUnchain(c, done))));
+    else if (a.kind === "weapons") wrap.appendChild(actionBtn(a.label, "shelf tools", () => runFlow((c, done) => flowWeapons(c, done))));
+    else if (a.kind === "check") wrap.appendChild(actionBtn(a.label, a.tag || a.targetLabel, () => runFlow((c, done) => runCheckFlow(a, c, done))));
+    else wrap.appendChild(actionBtn(a.label, "no roll", () => runFlow((c, done) => runInfoFlow(a.label, a.body, a.guidance, c, () => { closeModal(); if (a.onDone) a.onDone(); }))));
+  });
+
+  wrap.appendChild(actionBtn("something else?", "not on this list", () => runFlow((c, done) => flowOffMenu(c, done))));
+}
+
+// ---------- book differences (per-scenario errata) ----------
+const ERRATA = [
+  {
+    kind: "book leaves it open",
+    title: "Whether a surviving lookout warns the returning ruffians",
+    where: "page 15",
+    did: "If Harold (the roof lookout) is alive AND aware of the fight when reinforcements return, he auto-warns them — no Perception check; they arrive ready. If he's down, or on the roof but oblivious, we use the book's printed check (DC 8 while the fight's on, DC 10 once it's over).",
+    why: "The book only spells out the 'lookout is missing' branch, but page 15 also says a present lookout shouts and stomps to raise the alarm. A live, alerted lookout would obviously warn allies walking back up the path; a present-but-oblivious one changes nothing, so it falls back to the printed roll."
+  },
+  {
+    kind: "book leaves it open",
+    title: "Whether freeing Wynn's gag uses up her turn in combat",
+    where: "page 15 (gag DC) + general 5e turn rules",
+    did: "A successful DC 18 frees the gag AND still lets Wynn act that same turn (cast a spoken-word spell — her hands are still chained — or move). A failed attempt uses up her action for the turn; she can still move and try again next round.",
+    why: "By strict 5e rules, freeing yourself from a restraint is an action, so success would normally end her turn too. But DC 18 is nearly 'Hard' (~25% for Wynn) and she's still hands-chained, so making success also cost the whole turn double-punishes a rare good roll for no real gain. We reward the hard-won success and let the failed attempt carry the action cost."
+  },
+  {
+    kind: "book contradicts itself",
+    title: "The lookout-shot Perception DCs differ between two pages",
+    where: "pages 14 and 16",
+    did: "We use the page 16 numbers. If the lookout drops: Room 2 DC 10, Room 1 DC 15. If he survives and shouts: Room 2 DC 6, Room 1 DC 10.",
+    why: "Both pages describe the same event but print different DCs. It's the same rule typed twice with the numbers drifting. We trust page 16 because it's the block printed next to the location you're actually looking at when the shot happens."
+  },
+  {
+    kind: "book leaves it open",
+    title: "What a passed or failed lookout-shot check leads to",
+    where: "pages 14 and 16",
+    did: "A room that makes its check notices and combat starts there. Rooms notice independently — one can catch on while another stays unaware.",
+    why: "The book gives the detection DCs but never states the outcome. Giving each room its own separate DC signals the author wanted independent, per-room awareness."
+  },
+  {
+    kind: "book leaves it open",
+    title: "How an alarm in one room spreads to the others",
+    where: "not specified in the book",
+    did: "Once a fight actually starts, any room that hasn't noticed yet gets its normal 'loud noise' Perception check to catch on. No instant building-wide alarm.",
+    why: "The book never says how awareness spreads. Reusing the loud-noise DCs it already prints invents no new numbers and keeps the tension of sneaking room-by-room."
+  },
+  {
+    kind: "book leaves it open",
+    title: "The order of the two checks for climbing through Room 1's window",
+    where: "pages 14 and 17",
+    did: "We resolve the DC 10 Athletics check first (can they physically fit through the tight window), then the -4 Stealth check (did the guard notice). A natural 1 on the Athletics means a fall in the stream, and the splash gives the guard its own check.",
+    why: "The book lists both checks but never says which comes first. Climbing first, then detection, is the natural order — if they can't get through, there's nothing to be stealthy about yet."
+  }
+];
+function renderErrata() {
+  const link = document.getElementById("errata-link");
+  const panel = document.getElementById("errata-panel");
+  link.innerHTML = `<i class="ti ti-flag" style="font-size:13px; vertical-align:-2px; margin-right:4px;" aria-hidden="true"></i>book differences for this scenario (${ERRATA.length})`;
+  const items = ERRATA.map(e => `
+    <div style="padding:10px 0; border-bottom:0.5px solid var(--border);">
+      <div style="font-size:11px; color:var(--text-accent); margin-bottom:2px;">${e.kind} · ${e.where}</div>
+      <div style="font-size:13px; font-weight:500; margin-bottom:6px;">${e.title}</div>
+      <div style="font-size:13px; line-height:1.6; margin-bottom:4px;"><span style="color:var(--text-secondary);">what the app does —</span> ${e.did}</div>
+      <div style="font-size:13px; line-height:1.6;"><span style="color:var(--text-secondary);">why —</span> ${e.why}</div>
+    </div>`).join("");
+  panel.innerHTML = `
+    <div style="font-size:14px; font-weight:500; margin-bottom:4px;">Where this app differs from your book</div>
+    <div style="font-size:12px; color:var(--text-muted); margin-bottom:10px; line-height:1.5;">Spots where the book contradicts itself or leaves a rule open, and the call we made. If something looks off against your copy, it's probably here.</div>
+    ${items}`;
+  link.onclick = () => { panel.style.display = panel.style.display === "none" ? "block" : "none"; };
+}
+
+// ---------- boot ----------
+renderErrata();
+renderReminders();
+renderCombat();
+setLocation("exterior");
+</script>
