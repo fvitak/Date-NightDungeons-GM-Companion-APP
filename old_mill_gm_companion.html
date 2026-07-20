@@ -339,6 +339,7 @@ function startCombat(zone) {
   const wasActive = combatActive;
   combatActive = true;
   if (zone) zoneAlert[zone] = true;
+  renderActions(); // a room going from undetected to alerted can change which local actions apply
   if (!wasActive) {
     wynnGagAttemptedRound = false;
     renderCombat();
@@ -404,6 +405,8 @@ const LOCATIONS = {
       { label: "climb back out the window", to: "exterior", roomWindow: true, who: "tarric", mod: "stealth", penalty: -4, checkName: "Stealth check", target: 9, targetLabel: "Arnie's passive Perception, 9", targetTip: TIP_PASSIVE, tag: "2 checks", successText: "They slip back out unnoticed.", failText: "Arnie notices them leaving.", successGuidance: "Back outside. Ask what they do next.", failGuidance: "Start combat in Room 1.", failZone: "room1" }
     ],
     local: [
+      { label: "Tarric attacks Arnie", kind: "attackArnie", showIf: () => findC("arnie").hp > 0 && !zoneAlert.room1 },
+      { label: "Tarric frees Wynn's gag", kind: "gagTarric", showIf: () => findC("arnie").hp > 0 && !zoneAlert.room1 },
       { label: "free Wynn's gag", kind: "gag" },
       { label: "search the desk and chest", kind: "info", body: "Desk: song lyrics, a mandolin, a small chest. The small chest holds the key to Wynn's chains, plus odds and ends.", guidance: "They now have the key to Wynn's chains. Describe the find, then ask what they do next.", onDone: () => { hasKey = true; } },
       { label: "unchain Wynn with the key", kind: "unchain" }
@@ -671,6 +674,120 @@ function flowShootLookout(container, onDone) {
         <button id="f-done" style="width:100%; margin-top:10px;">done</button>`;
       container.querySelector("#f-done").onclick = onDone;
     };
+  }
+}
+
+// ---------- Tarric attacks Arnie while undetected (see errata #8) ----------
+// Flat attack roll vs Arnie's AC, no advantage — mirrors flowShootLookout's
+// precedent for sneaking a shot on Harold rather than inventing a bespoke
+// "unseen attacker" bonus the book never uses. Arnie's nodding-off state
+// already pays out as advantage on Tarric's Stealth check in flowGagTarric;
+// giving it again here would pay out the same fact twice.
+function flowAttackArnie(container, onDone) {
+  container.style.display = "block";
+  const dagger = findC("tarric").attacks.find(a => a.n === "Dagger");
+  container.innerHTML = `
+    <div style="font-size:11px; color:var(--text-muted); margin-bottom:8px;">Tarric attacks Arnie</div>
+    <div style="font-size:13px; margin-bottom:6px; line-height:1.6;">Arnie's still dozing and has no idea Tarric's there. Have Tarric roll ${tip("a dagger attack", `Roll a d20 and add Tarric's dagger attack bonus, +${dagger.mod}. Add it up out loud and give the total.`)} against ${tip("Arnie's AC, 12", TIP_AC)}.</div>
+    ${rollFieldsHtml("atkA", true)}
+    <div id="f-dmg-wrap" style="display:none; margin-top:10px; padding-top:10px; border-top:0.5px solid var(--border);">
+      <div id="f-dmg-msg" style="font-size:13px; margin-bottom:6px; line-height:1.6;"></div>
+      <label style="font-size:12px; color:var(--text-secondary); display:block; margin-bottom:4px;">damage total</label>
+      <input type="number" id="f-dmg" placeholder="e.g. 6" style="width:100%; margin-bottom:6px;" />
+      <div id="f-dmg-error" style="display:none; color:var(--text-danger); font-size:12px; margin-bottom:6px;">Enter a number.</div>
+      <button id="f-dmg-next" style="width:100%;">continue</button>
+    </div>
+    <button id="f-atk-next" style="width:100%;">continue</button>`;
+  wireNat("atkA");
+  let crit = false, natOne = false;
+  const atkNext = container.querySelector("#f-atk-next");
+  atkNext.onclick = () => {
+    const r = readRoll("atkA", 12);
+    if (!r) return;
+    natOne = r.nat1; crit = r.nat20;
+    if (r.ok) {
+      container.querySelector("#f-dmg-msg").innerHTML = crit
+        ? `It hits — <b>critical hit!</b> Have them roll ${tip("dagger damage", "Roll 1d4 and add 3, but roll the damage die twice for a crit, then give the total.")}.`
+        : `It hits. Have them roll ${tip("dagger damage", "Roll 1d4 and add 3. Give the total.")} out loud and tell you the total.`;
+      container.querySelector("#f-dmg-wrap").style.display = "block";
+      atkNext.style.display = "none";
+      container.querySelector("#f-dmg-next").onclick = () => {
+        const dmg = parseInt(container.querySelector("#f-dmg").value, 10);
+        if (isNaN(dmg) || dmg < 0) { container.querySelector("#f-dmg-error").style.display = "block"; return; }
+        finish(true, dmg);
+      };
+    } else {
+      finish(false, 0);
+    }
+  };
+  function finish(hit, dmg) {
+    if (!hit) {
+      container.innerHTML = `
+        <div style="font-size:13px; margin-bottom:14px; line-height:1.6;">The strike misses. Arnie doesn't stir.${natOne ? " (natural 1 — automatic miss)" : ""}</div>
+        ${guidanceHtml("No fight yet — combat hasn't started. Ask what the party does next.")}
+        <button id="f-done" style="width:100%; margin-top:10px;">done</button>`;
+      container.querySelector("#f-done").onclick = onDone;
+      return;
+    }
+    applyDamage("arnie", dmg);
+    const dropped = findC("arnie").hp === 0;
+    renderPresent();
+    if (dropped) {
+      renderActions(); // Arnie's down — hide the undetected-only actions immediately
+      container.innerHTML = `
+        <div style="font-size:13px; margin-bottom:14px; line-height:1.6;">Tarric's blade finds him before he ever wakes up — Arnie drops (${dmg} damage)${crit ? ", critical hit" : ""}. No sound, no struggle. Room 1's threat is gone.</div>
+        ${guidanceHtml("No fight yet — combat never starts. Ask what the party does next.")}
+        <button id="f-done" style="width:100%; margin-top:10px;">done</button>`;
+      container.querySelector("#f-done").onclick = onDone;
+    } else {
+      container.innerHTML = `
+        <div style="font-size:13px; margin-bottom:14px; line-height:1.6;">He's hit for ${dmg}${crit ? " (critical hit!)" : ""} but stays up — he cries out and comes up swinging.</div>
+        ${guidanceHtml("Start combat in Room 1.", tip("", TIP_INIT))}
+        <button id="f-done" style="width:100%; margin-top:10px;">start combat — roll for initiative</button>`;
+      container.querySelector("#f-done").onclick = () => startCombat("room1");
+    }
+  }
+}
+
+// ---------- Tarric frees Wynn's gag (undetected pre-combat — see errata #7) ----------
+// His hands are free and the cot's under the window, so pulling the gag off
+// costs no check. The only risk is the dozing guard stirring, so this is one
+// Stealth check against Arnie's passive Perception, not Wynn's DC 18 (that DC
+// models her chained hands, not Tarric's free ones).
+function flowGagTarric(container, onDone) {
+  container.style.display = "block";
+  step1();
+  function step1() {
+    container.innerHTML = `
+      <div style="font-size:11px; color:var(--text-muted); margin-bottom:8px;">Tarric frees Wynn's gag</div>
+      <div style="font-size:13px; margin-bottom:14px; line-height:1.6;">His hands are free and the cot is right under the window — no check needed to pull the gag off. Arnie's dozing, though, so have Tarric roll ${tip("a Stealth check", PARTY.tarric.stealth.tip + " Arnie's nodding off, so roll with advantage — roll two d20 and use the higher.")} against ${tip("Arnie's passive Perception, 9", TIP_PASSIVE)} to see if the guard stirs.</div>
+      ${rollFieldsHtml("tgag", true, NAT_EXTRA_CHECK)}
+      <button id="f-next" style="width:100%;">continue</button>`;
+    wireNat("tgag");
+    container.querySelector("#f-next").onclick = () => {
+      const r = readRoll("tgag", 9);
+      if (!r) return;
+      result(r);
+    };
+  }
+  function result(r) {
+    const success = r.ok;
+    if (success) findC("wynn").notes = findC("wynn").notes.filter(n => n !== "gagged");
+    renderCombat();
+    renderPresent();
+    const text = success
+      ? "The gag comes off without a sound. Wynn's mouth is clear — she can whisper and cast spells that need only spoken words — but she's still chained hand and foot. Freeing the gag doesn't free her."
+      : "Arnie stirs — he's noticed something.";
+    const guidance = success ? "No fight yet — ask what the party does next." : "Start combat in Room 1.";
+    const howClose = r.total == null
+      ? (r.nat20 ? "natural 20 — automatic success" : "natural 1 — automatic fail")
+      : "how close: " + marginFlavor(success ? r.total - 9 : 9 - r.total, success);
+    container.innerHTML = `
+      <div style="font-size:11px; color:var(--text-muted); margin-bottom:4px;">${howClose}</div>
+      <div style="font-size:13px; margin-bottom:14px; line-height:1.6;">${text}</div>
+      ${guidanceHtml(guidance, !success ? tip("", TIP_INIT) : "")}
+      <button id="f-done" style="width:100%; margin-top:10px;">${success ? "done" : "start combat — roll for initiative"}</button>`;
+    container.querySelector("#f-done").onclick = success ? onDone : () => startCombat("room1");
   }
 }
 
@@ -1349,7 +1466,10 @@ function renderActions() {
   });
 
   (loc.local || []).forEach(a => {
+    if (a.showIf && !a.showIf()) return;
     if (a.kind === "attack") wrap.appendChild(actionBtn(a.label, "attack roll", () => runFlow((c, done) => flowShootLookout(c, done))));
+    else if (a.kind === "attackArnie") wrap.appendChild(actionBtn(a.label, "dagger attack roll", () => runFlow((c, done) => flowAttackArnie(c, done))));
+    else if (a.kind === "gagTarric") wrap.appendChild(actionBtn(a.label, "Stealth vs passive Perception", () => runFlow((c, done) => flowGagTarric(c, done))));
     else if (a.kind === "gag") wrap.appendChild(actionBtn(a.label, "DC 18 Dexterity", () => runFlow((c, done) => flowGag(c, done))));
     else if (a.kind === "unchain") wrap.appendChild(actionBtn(a.label, wynnFreed ? "done" : hasKey ? "ready" : "need the key", () => runFlow((c, done) => flowUnchain(c, done))));
     else if (a.kind === "weapons") wrap.appendChild(actionBtn(a.label, "shelf tools", () => runFlow((c, done) => flowWeapons(c, done))));
@@ -1403,6 +1523,20 @@ const ERRATA = [
     where: "pages 14 and 17",
     did: "We resolve the DC 10 Athletics check first (can they physically fit through the tight window), then the -4 Stealth check (did the guard notice). A natural 1 on the Athletics means a fall in the stream, and the splash gives the guard its own check.",
     why: "The book lists both checks but never says which comes first. Climbing first, then detection, is the natural order — if they can't get through, there's nothing to be stealthy about yet."
+  },
+  {
+    kind: "book leaves it open",
+    title: "Tarric freeing Wynn's gag pre-combat, undetected",
+    where: "page 15 (gag DC) — Tarric acting isn't covered at all",
+    did: "When Tarric is undetected in Room 1 pre-combat, he can pull Wynn's gag off with no check — his hands are free and the cot's under the window. It costs one Stealth check (Tarric) against Arnie's passive Perception, 9, with advantage since Arnie's dozing. Failure rouses Arnie — roll Room 1 initiative. This is separate from Wynn's own DC 18 attempt, which still applies when she's trying it herself.",
+    why: "The book only writes up Wynn freeing her own gag (DC 18, modeling her chained hands) and never considers a free-handed ally already in the room. Applying DC 18 to Tarric would be checking the wrong character against the wrong obstacle — his risk is being noticed, not dexterity."
+  },
+  {
+    kind: "book leaves it open",
+    title: "Tarric attacking Arnie while undetected in Room 1, pre-combat",
+    where: "page 17 (Arnie, \"in the process of nodding off\") — attacking him in this state isn't addressed at all. Closest precedent: the lookout-shot mechanic, pages 14-16.",
+    did: "While Tarric is undetected in Room 1, a \"Tarric attacks Arnie\" action is available alongside \"Tarric frees Wynn's gag.\" It's a flat dagger attack roll against Arnie's AC 12 — no advantage for being unseen, matching the book's own precedent for shooting Harold pre-combat. A miss is silent: Arnie doesn't stir, no check, try again or do something else. A hit that drops him (0 HP) kills him before he ever wakes — no cry, no check, Room 1's threat is simply gone. A hit that doesn't drop him rouses him — he cries out and Room 1 combat starts immediately, at which point the existing alarm-spread rule (deviation #3) takes over unmodified for whether Room 2 or the roof hear the fight.",
+    why: "For the attack roll we follow the book's own precedent over strict 5e advantage-against-an-unseen-target — the module already answered this once, with Harold, using a flat roll with no bonus. Arnie's nodding-off state already pays out as advantage on Tarric's Stealth check (deviation #7); giving it again here would pay out the same fact twice across two adjacent actions. We don't invent a new DC for the cry when Arnie survives — deviation #3 already built that plumbing, so we reuse it. The zero-noise clean kill is where we lean away from a strict Harold parallel: Harold falls on an exposed roof loud enough that both interior rooms get a chance to hear it; Arnie dies three feet from Wynn's cot mid-swing, with nothing left to make noise. It isn't a free win — AC 12 still has to be beaten, and a non-lethal hit throws the party straight into the fight they were trying to avoid — so the clean kill rewards a genuinely careful approach rather than trivializing the encounter."
   }
 ];
 function renderErrata() {

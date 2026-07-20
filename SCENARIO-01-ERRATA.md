@@ -148,6 +148,75 @@ veteran-GM persona.)
 
 ---
 
+## 7. Book leaves it open — Tarric freeing Wynn's gag pre-combat, undetected
+
+**Where:** book page 15 (gives Wynn's own gag DC 18); Tarric acting on her
+bindings isn't covered at all.
+
+**The gap:** the book only writes up Wynn freeing her own gag (DC 18, modeling
+her chained hands). It never considers the case where Tarric has already
+snuck into Room 1 undetected pre-combat and is standing right next to her,
+hands free.
+
+**What the app does:** while Tarric is undetected in Room 1 (Arnie alive and
+not yet alerted), a separate "Tarric frees Wynn's gag" action is available.
+Removing the gag itself needs no check — his hands are free and the cot is
+under the window. It costs one Stealth check (Tarric) against Arnie's passive
+Perception, 9, rolled with advantage since Arnie's dozing off. A failure
+rouses Arnie — roll Room 1 initiative. A success only frees the gag: Wynn is
+still chained hand and foot, so she can whisper and cast verbal-only spells,
+but she isn't rescued. Wynn's own DC 18 attempt (deviation #6) is unchanged
+and still applies when she's trying it herself.
+
+**Why:** DC 18 models Wynn's own chained hands working the knot one-handed —
+it has nothing to do with Tarric, whose hands aren't bound at all. Applying
+her DC to him checks the wrong character against the wrong obstacle. His real
+risk in that moment is whether the guard notices, so a Stealth-vs-passive-
+Perception check is the mechanic that actually matches what's happening at
+the table.
+
+---
+
+## 8. Book leaves it open — Tarric attacking Arnie while undetected in Room 1, pre-combat
+
+**Where:** book page 17 (Arnie, "in the process of nodding off") — attacking
+him in this state isn't addressed at all. Closest precedent: the lookout-shot
+mechanic, pages 14–16 (deviations #1–#2).
+
+**The gap:** the book gives Arnie's stats and nothing else — no DC, no
+surprise rule, no outcome for striking a dozing, undetected guard.
+
+**What the app does:** while Tarric is undetected in Room 1 (Arnie alive,
+room not yet alerted), a new "Tarric attacks Arnie" action is available
+alongside "Tarric frees Wynn's gag." It's a flat dagger attack roll against
+Arnie's AC 12 — no advantage for being unseen, matching the book's own
+precedent for shooting Harold pre-combat. A miss is silent: Arnie doesn't
+stir, no check, try again or do something else. A hit that drops him (0 HP)
+kills him before he ever wakes — no cry, no check, Room 1's threat is simply
+gone. A hit that doesn't drop him rouses him — he cries out and Room 1
+combat starts immediately, at which point the existing alarm-spread rule
+(deviation #3) takes over unmodified for whether Room 2 or the roof hear the
+fight.
+
+**Why:** for the attack roll we follow the book's own precedent over strict
+5e "advantage against an unseen target" — the module already answered this
+question once, with Harold, using a flat roll with no bonus. Arnie's
+nodding-off state already pays out as advantage on Tarric's Stealth check in
+deviation #7; giving it again here would pay out the same fact twice across
+two adjacent actions. We don't invent a new DC for the cry when Arnie
+survives — deviation #3 already built the plumbing for "a fight starts,
+unaware rooms get their normal check," so we reuse it instead. The
+zero-noise clean kill is where we lean away from a strict Harold parallel:
+Harold falls on an exposed roof loud enough that both interior rooms get a
+chance to hear it; Arnie dies three feet from Wynn's cot mid-swing, with
+nothing left to make noise. It isn't a free win — AC 12 still has to be
+beaten, and a non-lethal hit throws the party straight into the fight they
+were trying to avoid — so the clean kill rewards a genuinely careful
+approach rather than trivializing the encounter. (Table-craft call, reviewed
+with a veteran-GM persona.)
+
+---
+
 ## Known gaps not yet built (tracked, not yet addressed)
 
 These are real Scenario One mechanics the app does not yet cover. Listed so
